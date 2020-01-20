@@ -5,6 +5,6 @@
 menuentry "Sample EFI boot" --unrestricted {
     savedefault
     set fallback=1
-    linux /bzImage root=/dev/hda2 ro rootwait
-    initrd /initrd
+    linux /bzImage LABEL=boot  rootwait console=ttyS0,115200 console=tty0 root=/dev/sda2
+    #initrd /initrd
 }

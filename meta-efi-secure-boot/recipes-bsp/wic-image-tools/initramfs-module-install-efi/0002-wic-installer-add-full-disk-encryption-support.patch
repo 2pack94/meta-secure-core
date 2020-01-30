@@ -1,0 +1,55 @@
+--- b/init-install-efi.sh	2020-01-27 13:02:41.976543662 +0100
++++ c/init-install-efi.sh	2020-01-27 14:07:50.820484483 +0100
+@@ -25,6 +25,8 @@
+ # 5% for swap
+ swap_ratio=5
+ 
++do_encryption=1
++
+ # Get a list of hard drives
+ hdnamelist=""
+ live_dev_name=`cat /proc/mounts | grep ${1%/} | awk '{print $1}'`
+@@ -204,6 +206,30 @@
+     sleep 1
+ done
+ 
++if [ $do_encryption -eq 1 ] ; then
++    which luks-setup.sh >/dev/null 2>&1
++    if [ $? -eq 1 ]; then
++        echo "WARNING: --encrypt ignored due to missing luks-setup.sh. \
++Install cryptfs-tpm2"
++        do_encryption=0
++    fi
++
++    which cryptsetup >/dev/null 2>&1
++    if [ $? -eq 1 ]; then
++        echo "WARNING: --encrypt ignored due to missing cryptsetup. \
++Install cryptsetup"
++        do_encryption=0
++    fi
++fi
++
++if [ $do_encryption -eq 1 ]; then
++    ## create and open luks partition. Evict all objects for the first creation.
++    cmd="luks-setup.sh -f -e -d ${rootfs} -n ${TARGET_DEVICE_NAME}_encrypted"
++    cmd="echo Y | $cmd"
++    eval "$cmd"
++    rootfs="/dev/mapper/${TARGET_DEVICE_NAME}_encrypted"
++fi
++
+ echo "Formatting $bootfs to vfat..."
+ mkfs.vfat $bootfs
+ 
+@@ -303,6 +329,12 @@
+ 
+ sync
+ 
++if [ $do_encryption -eq 1 ]; then
++    echo "INFO: Closing LUKS ..."
++
++    cryptsetup luksClose "${TARGET_DEVICE_NAME}_encrypted"
++fi
++
+ echo "Installation successful. Remove your installation media and press ENTER to reboot."
+ 
+ read enter

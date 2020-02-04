@@ -180,15 +180,6 @@ addtask chownboot after do_deploy before do_package
 # Append the do_deploy() in oe-core.
 do_deploy_append_class-target() {
     install -m 0644 "${D}${EFI_BOOT_PATH}/${GRUB_IMAGE}" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/grub.cfg" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/grubenv" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/boot-menu.inc" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/efi-secure-boot.inc" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/password.inc" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/grub.cfg${SB_FILE_EXT}" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/boot-menu.inc${SB_FILE_EXT}" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/efi-secure-boot.inc${SB_FILE_EXT}" "${DEPLOYDIR}"
-    install -m 0644 "${D}${EFI_BOOT_PATH}/password.inc${SB_FILE_EXT}" "${DEPLOYDIR}"
 
     # Deploy the stacked grub configs.
     install -m 0600 "${D}${EFI_BOOT_PATH}/grubenv" "${DEPLOYDIR}"

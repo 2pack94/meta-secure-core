@@ -33,10 +33,7 @@ FILES_${PN} = "\
 # @gawk: awk
 # @eudev or udev: udevd, udevadm
 RDEPENDS_${PN} += "\
-    coreutils \
-    util-linux-mount \
-    grep \
-    gawk \
+    busybox \
     ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'udev', 'eudev', d)} \
 "
 

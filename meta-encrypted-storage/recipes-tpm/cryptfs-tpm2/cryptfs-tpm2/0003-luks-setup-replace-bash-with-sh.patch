@@ -1,0 +1,8 @@
+--- a/scripts/luks-setup.sh	2019-12-19 12:05:33.834441000 +0100
++++ b/scripts/luks-setup.sh	2020-05-29 14:56:34.314786729 +0200
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ # The wrapper script for the creation of LUKS partition
+ #

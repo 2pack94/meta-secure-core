@@ -1,8 +1,0 @@
---- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
-+++ b/scripts/init.cryptfs	2020-05-29 14:56:22.972461126 +0200
-@@ -1,4 +1,4 @@
--#!/bin/bash
-+#!/bin/sh
- 
- # Initramfs script called by /init
- #

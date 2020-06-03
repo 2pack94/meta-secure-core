@@ -24,8 +24,6 @@ SRC_URI = "\
     file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
     file://0001-encrypt_secret.py-switch-to-python3.patch \
     file://0002-luks-setup.sh-Updated-TPM-Tools.patch \
-    file://0003-luks-setup-replace-bash-with-sh.patch \
-    file://0001-init.cryptfs-replace-bash-with-sh.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"
 
@@ -79,8 +77,10 @@ RDEPENDS_${PN} += "\
     libtss2 \
     libtss2-tcti-device \
     libtss2-tcti-mssim \
-    zsh \
-    busybox \
+    bash \
+    coreutils \
+    grep \
+    procps \
     cryptsetup \
     tpm2-tools \
 "
@@ -97,8 +97,9 @@ RDEPENDS_${PN} += "\
 # @net-tools: ifconfig
 # @util-linux: mount, umount, blkid
 RDEPENDS_${PN}-initramfs += "\
-    zsh \
-    busybox \
+    bash \
+    coreutils \
+    grep \
     gawk \
     sed \
     kmod \

@@ -1,0 +1,12 @@
+diff -u a/scripts/init.cryptfs b/scripts/init.cryptfs
+--- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
++++ b/scripts/init.cryptfs	2020-06-09 10:41:16.213623581 +0200
+@@ -43,6 +43,8 @@
+ # Global constant settings
+ #
+ 
++PATH=$PATH:'/usr/sbin':'/sbin'
++
+ # The tmpfs filesystem used to temporarily place the
+ # passphrase file.
+ TMP_DIR="/tmp"

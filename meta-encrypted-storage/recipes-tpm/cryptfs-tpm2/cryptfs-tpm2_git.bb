@@ -19,11 +19,14 @@ DEPENDS += "tpm2-tss tpm2-abrmd pkgconfig-native"
 
 PV = "0.7.0+git${SRCPV}"
 
+# 0003-luks-setup, 0001-init.cryptfs: patch to support GPLv2 bash
 SRC_URI = "\
     git://github.com/jiazhang0/cryptfs-tpm2.git \
-    file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
     file://0001-encrypt_secret.py-switch-to-python3.patch \
+    file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
     file://0002-luks-setup.sh-Updated-TPM-Tools.patch \
+    file://0003-luks-setup-add-usr-sbin-to-path.patch \
+    file://0001-init.cryptfs-add-usr-sbin-to-path.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"
 
@@ -67,8 +70,7 @@ FILES_${PN}-initramfs = "\
 
 # For luks-setup.sh
 # @bash: bash
-# @coreutils: echo, printf, cat, rm
-# @grep: grep
+# @busybox: echo, printf, cat, rm, grep
 # @procps: pkill, pgrep
 # @cryptsetup: cryptsetup
 # @tpm2-tools: tpm2_*
@@ -78,8 +80,7 @@ RDEPENDS_${PN} += "\
     libtss2-tcti-device \
     libtss2-tcti-mssim \
     bash \
-    coreutils \
-    grep \
+    busybox \
     procps \
     cryptsetup \
     tpm2-tools \
@@ -87,10 +88,7 @@ RDEPENDS_${PN} += "\
 
 # For init.cryptfs
 # @bash: bash
-# @coreutils: echo, printf, cat, sleep, mkdir, seq, rm, rmdir, mknod, cut
-# @grep: grep
-# @gawk: awk
-# @sed: sed
+# @busybox: echo, printf, cat, sleep, mkdir, seq, rm, rmdir, mknod, cut, grep, awk, sed
 # @kmod: depmod, modprobe
 # @cryptsetup: cryptsetup
 # @cryptfs-tpm2: cryptfs-tpm2
@@ -98,10 +96,7 @@ RDEPENDS_${PN} += "\
 # @util-linux: mount, umount, blkid
 RDEPENDS_${PN}-initramfs += "\
     bash \
-    coreutils \
-    grep \
-    gawk \
-    sed \
+    busybox \
     kmod \
     cryptsetup \
     cryptfs-tpm2 \

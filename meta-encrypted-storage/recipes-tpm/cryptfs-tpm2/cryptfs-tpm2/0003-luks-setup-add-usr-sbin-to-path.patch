@@ -1,0 +1,12 @@
+diff -u a/scripts/luks-setup.sh b/scripts/luks-setup.sh
+--- a/scripts/luks-setup.sh	2020-06-04 15:36:40.800535046 +0200
++++ b/scripts/luks-setup.sh	2020-06-09 10:43:22.649621667 +0200
+@@ -46,6 +46,8 @@
+ TPM_ABSENT=1
+ TEMP_DIR=""
+ 
++PATH=$PATH:'/usr/sbin'
++
+ print_critical() {
+     printf "\033[1;35m"
+     echo "$@"

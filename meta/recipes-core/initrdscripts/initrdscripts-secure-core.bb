@@ -11,6 +11,10 @@ SRC_URI = "\
 do_install() {
     install -m 0755 "${WORKDIR}/init" "${D}/init"
 
+    if [ "${FULL_DISK_ENCRYPTION}" = "1" ] && [ ${@bb.utils.contains("DISTRO_FEATURES", "luks", 'true', '', d)} ]; then
+        sed -i '0,/is_encrypted=0/s//is_encrypted=1/' ${D}/init
+    fi
+
     # Create device nodes expected by kernel in initramfs
     # before executing /init.
     install -d "${D}/dev"
@@ -27,16 +31,10 @@ FILES_${PN} = "\
 # Install the minimal stuffs only, and don't care how the external
 # environment is configured.
 
-# @coreutils: echo, cat, sleep, switch_root, expr, mkdir
-# @util-linux: mount
-# @grep: grep
-# @gawk: awk
+# @busybox: echo, cat, sleep, switch_root, expr, mkdir, mount, grep, awk
 # @eudev or udev: udevd, udevadm
 RDEPENDS_${PN} += "\
-    coreutils \
-    util-linux-mount \
-    grep \
-    gawk \
+    busybox \
     ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'udev', 'eudev', d)} \
 "
 

@@ -1,0 +1,152 @@
+diff -u a/init-install-efi.sh b/init-install-efi.sh
+--- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
++++ b/init-install-efi.sh	2020-06-09 14:56:45.495229050 +0200
+@@ -8,15 +8,20 @@
+ 
+ PATH=/sbin:/bin:/usr/sbin:/usr/bin
+ 
++do_encryption=0
++use_initramfs=0
++
+ # figure out how big of a boot partition we need
+ boot_size=$(du -ms /run/media/$1/ | awk '{print $1}')
+ # remove rootfs.img ($2) from the size if it exists, as its not installed to /boot
+ if [ -e /run/media/$1/$2 ]; then
+     boot_size=$(( boot_size - $( du -ms /run/media/$1/$2 | awk '{print $1}') ))
+ fi
+-# remove initrd from size since its not currently installed
+-if [ -e /run/media/$1/initrd ]; then
+-    boot_size=$(( boot_size - $( du -ms /run/media/$1/initrd | awk '{print $1}') ))
++# remove initrd from size if its not installed
++if [ $use_initramfs -eq 0 ]; then
++    if [ -e /run/media/$1/initrd ]; then
++        boot_size=$(( boot_size - $( du -ms /run/media/$1/initrd | awk '{print $1}') ))
++    fi
+ fi
+ # add 10M to provide some extra space for users and account
+ # for rounding in the above subtractions
+@@ -174,6 +179,8 @@
+ rootfs=${device}${part_prefix}2
+ swap=${device}${part_prefix}3
+ 
++rootfs_orig=$rootfs
++
+ echo "*****************"
+ echo "Boot partition size:   $boot_size MB ($bootfs)"
+ echo "Rootfs partition size: $rootfs_size MB ($rootfs)"
+@@ -204,6 +211,30 @@
+     sleep 1
+ done
+ 
++if [ $do_encryption -eq 1 ] ; then
++    which luks-setup.sh >/dev/null 2>&1
++    if [ $? -eq 1 ]; then
++        echo "WARNING: --encrypt ignored due to missing luks-setup.sh. \
++Install cryptfs-tpm2"
++        do_encryption=0
++    fi
++
++    which cryptsetup >/dev/null 2>&1
++    if [ $? -eq 1 ]; then
++        echo "WARNING: --encrypt ignored due to missing cryptsetup. \
++Install cryptsetup"
++        do_encryption=0
++    fi
++fi
++
++if [ $do_encryption -eq 1 ]; then
++    ## create and open luks partition. Evict all objects for the first creation.
++    cmd="luks-setup.sh -f -e -d ${rootfs} -n ${TARGET_DEVICE_NAME}_encrypted"
++    cmd="echo Y | $cmd"
++    eval "$cmd"
++    rootfs="/dev/mapper/${TARGET_DEVICE_NAME}_encrypted"
++fi
++
+ echo "Formatting $bootfs to vfat..."
+ mkfs.vfat $bootfs
+ 
+@@ -241,18 +272,29 @@
+ 
+ EFIDIR="/boot/EFI/BOOT"
+ mkdir -p $EFIDIR
+-# Copy the efi loader
++# Copy the efi loader, configuration files and certificates
+ cp /run/media/$1/EFI/BOOT/*.efi $EFIDIR
++if [ -f /run/media/$1/EFI/BOOT/*.inc ]; then
++    cp /run/media/$1/EFI/BOOT/*.inc $EFIDIR
++fi
++if [ -f /run/media/$1/EFI/BOOT/*.p7b ]; then
++    cp /run/media/$1/EFI/BOOT/*.p7b $EFIDIR
++fi
++if [ -f /run/media/$1/EFI/BOOT/grubenv ]; then
++    cp /run/media/$1/EFI/BOOT/grubenv $EFIDIR
++fi
+ 
+ if [ -f /run/media/$1/EFI/BOOT/grub.cfg ]; then
+-    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs})
++    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs_orig})
+     GRUBCFG="$EFIDIR/grub.cfg"
+     cp /run/media/$1/EFI/BOOT/grub.cfg $GRUBCFG
+     # Update grub config for the installed image
+     # Delete the install entry
+     sed -i "/menuentry 'install'/,/^}/d" $GRUBCFG
+     # Delete the initrd lines
+-    sed -i "/initrd /d" $GRUBCFG
++    if [ $use_initramfs -eq 0 ]; then
++        sed -i "/initrd /d" $GRUBCFG
++    fi
+     # Delete any LABEL= strings
+     sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
+     # Replace root= and add additional standard boot options
+@@ -261,20 +303,22 @@
+ fi
+ 
+ if [ -d /run/media/$1/loader ]; then
+-    rootuuid=$(blkid -o value -s PARTUUID ${rootfs})
++    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs_orig})
+     SYSTEMDBOOT_CFGS="/boot/loader/entries/*.conf"
+     # copy config files for systemd-boot
+     cp -dr /run/media/$1/loader /boot
+     # delete the install entry
+     rm -f /boot/loader/entries/install.conf
+     # delete the initrd lines
+-    sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
++    if [ $use_initramfs -eq 0 ]; then
++        sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
++    fi
+     # delete any LABEL= strings
+     sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+     # delete any root= strings
+     sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+     # add the root= and other standard boot options
+-    sed -i "s@options *@options root=PARTUUID=$rootuuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
++    sed -i "s@options *@options root=PARTUUID=$root_part_uuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
+ fi
+ 
+ umount /tgt_root
+@@ -287,10 +331,25 @@
+     done
+ done
+ 
++# Copy initramfs artifacts. To add more artifacts just add to types
++if [ $use_initramfs -eq 1 ]; then
++    for types in microcode initrd initramfs; do
++        for initrd in `find /run/media/$1/ -name $types*`; do
++            cp $initrd /boot
++        done
++    done
++fi
++
+ umount /boot
+ 
+ sync
+ 
++if [ $do_encryption -eq 1 ]; then
++    echo "INFO: Closing LUKS ..."
++
++    cryptsetup luksClose "${TARGET_DEVICE_NAME}_encrypted"
++fi
++
+ echo "Installation successful. Remove your installation media and press ENTER to reboot."
+ 
+ read enter

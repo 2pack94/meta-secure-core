@@ -1,6 +1,6 @@
 diff -u a/init-install-efi.sh b/init-install-efi.sh
 --- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
-+++ b/init-install-efi.sh	2020-06-09 14:56:45.495229050 +0200
++++ b/init-install-efi.sh	2020-06-17 14:52:46.567746922 +0200
 @@ -8,15 +8,20 @@
  
  PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -72,10 +72,10 @@ diff -u a/init-install-efi.sh b/init-install-efi.sh
 -# Copy the efi loader
 +# Copy the efi loader, configuration files and certificates
  cp /run/media/$1/EFI/BOOT/*.efi $EFIDIR
-+if [ -f /run/media/$1/EFI/BOOT/*.inc ]; then
++if [ $(ls -1 /run/media/$1/EFI/BOOT/*.inc 2>/dev/null | wc -l) -gt 0 ]; then
 +    cp /run/media/$1/EFI/BOOT/*.inc $EFIDIR
 +fi
-+if [ -f /run/media/$1/EFI/BOOT/*.p7b ]; then
++if [ $(ls -1 /run/media/$1/EFI/BOOT/*.p7b 2>/dev/null | wc -l) -gt 0 ]; then
 +    cp /run/media/$1/EFI/BOOT/*.p7b $EFIDIR
 +fi
 +if [ -f /run/media/$1/EFI/BOOT/grubenv ]; then
@@ -124,10 +124,16 @@ diff -u a/init-install-efi.sh b/init-install-efi.sh
  fi
  
  umount /tgt_root
-@@ -287,10 +331,25 @@
+@@ -287,10 +331,31 @@
      done
  done
  
++# Copy EFI Unified Kernel Images
++if [ $(ls -1 /run/media/$1/EFI/Linux/*.efi 2>/dev/null | wc -l) -gt 0 ]; then
++    mkdir /boot/EFI/Linux
++    cp /run/media/$1/EFI/Linux/*.efi /boot/EFI/Linux/
++fi
++
 +# Copy initramfs artifacts. To add more artifacts just add to types
 +if [ $use_initramfs -eq 1 ]; then
 +    for types in microcode initrd initramfs; do

@@ -8,6 +8,5 @@ require packagegroup-luks.inc
 
 RDEPENDS_${PN} += "\
     util-linux-fdisk \
-    parted \
     packagegroup-tpm2 \
 "

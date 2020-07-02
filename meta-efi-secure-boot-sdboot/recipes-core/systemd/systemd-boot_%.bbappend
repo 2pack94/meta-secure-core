@@ -7,3 +7,11 @@ do_compile_append() {
 do_deploy_append() {
         install ${B}/src/boot/efi/linux*.efi.stub ${DEPLOYDIR}
 }
+
+# Sign the systemd bootloader
+# The signing key locations are specified in the unified-kernel recipe in this layer
+SIGN_AFTER = "do_deploy"
+SIGN_BEFORE = "do_build"
+SIGNING_DIR = "${DEPLOY_DIR_IMAGE}"
+SIGNING_BINARIES = "systemd-boot*.efi"
+inherit uefi-sign

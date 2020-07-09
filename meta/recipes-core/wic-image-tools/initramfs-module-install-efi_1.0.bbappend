@@ -14,10 +14,11 @@ python () {
 }
 
 do_install_append() {
-    if [ "${FULL_DISK_ENCRYPTION}" = "1" ] && [ ${@bb.utils.contains("DISTRO_FEATURES", "luks", 'true', '', d)} ]; then
+    if [ "${FULL_DISK_ENCRYPTION}" = "1" ] && [ ${@bb.utils.contains('DISTRO_FEATURES', 'luks', '1', '0', d)} = '1' ]; then
         sed -i '0,/do_encryption=0/s//do_encryption=1/' ${D}/init.d/install-efi.sh
     fi
-    if [ "${INITRAMFS_IMAGE}" ]; then
+    # when systemd-boot secure boot is enabled, the initramfs will be embedded in the unified kernel image
+    if [ "${INITRAMFS_IMAGE}" ] && [ ${@bb.utils.contains('IMAGE_FEATURES', 'secureboot', '1', '0', d)} = '0' ]; then
         sed -i '0,/use_initramfs=0/s//use_initramfs=1/' ${D}/init.d/install-efi.sh
     fi
 }

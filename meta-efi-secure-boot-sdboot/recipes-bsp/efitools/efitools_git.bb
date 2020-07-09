@@ -70,6 +70,15 @@ do_prepare_signing_keys[prefuncs] += "check_deploy_keys"
 do_install_append() {
     install -d ${D}${EFI_BOOT_PATH}
     install -m 0755 ${D}${datadir}/efitools/efi/LockDown.efi ${D}${EFI_BOOT_PATH}
+
+    # create a boot config file for systemd-boot that creates a boot entry for LockDown.efi
+    if [ ${EFI_PROVIDER} = "systemd-boot" ] ; then
+        install -d ${D}/boot/loader/entries
+        cat <<EOF > ${D}/boot/loader/entries/LockDown.conf
+title Automatic Certificate Provision
+efi /EFI/BOOT/LockDown.efi
+EOF
+    fi
 }
 
 do_deploy() {
@@ -79,5 +88,11 @@ do_deploy() {
     if [ -e ${D}${EFI_BOOT_PATH}/LockDown.efi.sig ] ; then
         install -m 0600 ${D}${EFI_BOOT_PATH}/LockDown.efi.sig "${DEPLOYDIR}"
     fi
+    if [ ${EFI_PROVIDER} = "systemd-boot" ] ; then
+        install -d ${DEPLOYDIR}/boot/loader/entries
+        install ${D}/boot/loader/entries/LockDown.conf "${DEPLOYDIR}/boot/loader/entries/"
+    fi
 }
 addtask deploy after do_install before do_build
+
+FILES_${PN} += "/boot/loader/entries/LockDown.conf"

@@ -3,14 +3,9 @@
 DESCRIPTION = "signed unified kernel image that can be loaded and verified by systemd-boot"
 LICENSE = "MIT"
 
-inherit uefi-comboapp
-
-IMAGE_FEATURES += "secureboot"
-
-SECURE_BOOT_SIGNING_KEY ?= "${UEFI_SB_KEYS_DIR}/DB.key"
-SECURE_BOOT_SIGNING_CERT ?= "${UEFI_SB_KEYS_DIR}/DB.crt"
-
+# the signing key locations are defined in layer.conf
 do_uefi_sign[vardeps] += "UEFI_SB_KEYS_DIR"
+inherit uefi-comboapp
 
 # need to be set explicitly, otherwise it will get overridden inside uefi-comboapp.bbclass
 INITRD_IMAGE="${INITRAMFS_IMAGE}"

@@ -1,7 +1,6 @@
-# this recipe inherits from uefi-comboapp.bbclass in meta-intel to create an unified kernel image that is signed for UEFI Secure Boot
-
-DESCRIPTION = "signed unified kernel image that can be loaded and verified by systemd-boot"
-LICENSE = "MIT"
+# This recipe inherits from uefi-comboapp.bbclass in meta-intel to create an unified kernel image that is signed for UEFI Secure Boot
+# It can be loaded and verified by systemd-boot
+# A recipe that inherits uefi-comboapp needs to have the tasks do_rootfs and do_image in this order
 
 # the signing key locations are defined in layer.conf
 do_uefi_sign[vardeps] += "UEFI_SB_KEYS_DIR"
@@ -10,8 +9,11 @@ inherit uefi-comboapp
 # need to be set explicitly, otherwise it will get overridden inside uefi-comboapp.bbclass
 INITRD_IMAGE="${INITRAMFS_IMAGE}"
 
-# kernel command line for the unified kernel image
-APPEND += "root=/dev/sda2 rw rootwait"
+# empty this variable, as the rootfs partition is loaded according to its disk name
+DISK_SIGNATURE_UUID = ""
+
+# kernel command line for the unified kernel image. override other modifications to APPEND
+APPEND = "root=/dev/sda2 rw rootwait"
 
 # create a os-release file and add it as a section to the unified kernel image.
 # This is needed by systemd-boot to display the image in the boot menu.

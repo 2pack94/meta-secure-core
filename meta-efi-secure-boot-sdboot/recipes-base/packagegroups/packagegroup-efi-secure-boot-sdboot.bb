@@ -5,6 +5,5 @@ LICENSE = "MIT"
 ALLOW_EMPTY_${PN} = "1"
 
 DEPENDS = " \
-    unified-kernel \
     efitools \
 "

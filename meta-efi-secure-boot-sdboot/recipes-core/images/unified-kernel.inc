@@ -7,12 +7,14 @@ do_uefi_sign[vardeps] += "UEFI_SB_KEYS_DIR"
 inherit uefi-comboapp
 
 # need to be set explicitly, otherwise it will get overridden inside uefi-comboapp.bbclass
-INITRD_IMAGE="${INITRAMFS_IMAGE}"
+INITRD_IMAGE = "${INITRAMFS_IMAGE}"
+# need to be set explicitly, otherwise it will not get set inside uefi-comboapp.bbclass
+INITRD_LIVE = " ${@ ('${DEPLOY_DIR_IMAGE}/' + d.getVar('INITRD_IMAGE', expand=True) + '-${MACHINE}.cpio.gz') if d.getVar('INITRD_IMAGE', True) else ''}"
 
-# empty this variable, as the rootfs partition is loaded according to its disk name
-DISK_SIGNATURE_UUID = ""
+# empty this variable, as the rootfs partition is loaded according to its disk name.
+DISK_SIGNATURE_UUID ?= ""
 
-# kernel command line for the unified kernel image. override other modifications to APPEND
+# kernel command line for the unified kernel image. Overrides settings from other layers.
 APPEND = "root=/dev/sda2 rw rootwait"
 
 # create a os-release file and add it as a section to the unified kernel image.

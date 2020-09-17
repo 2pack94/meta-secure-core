@@ -1,6 +1,11 @@
-diff -u a/scripts/init.cryptfs b/scripts/init.cryptfs
 --- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
-+++ b/scripts/init.cryptfs	2020-06-09 10:41:16.213623581 +0200
++++ b/scripts/init.cryptfs	2020-09-17 11:25:41.422054832 +0200
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ # Initramfs script called by /init
+ #
 @@ -43,6 +43,8 @@
  # Global constant settings
  #

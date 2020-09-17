@@ -19,14 +19,13 @@ DEPENDS += "tpm2-tss tpm2-abrmd pkgconfig-native"
 
 PV = "0.7.0+git${SRCPV}"
 
-# 0003-luks-setup, 0001-init.cryptfs: patch to support GPLv2 bash
 SRC_URI = "\
     git://github.com/jiazhang0/cryptfs-tpm2.git \
     file://0001-encrypt_secret.py-switch-to-python3.patch \
     file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
     file://0002-luks-setup.sh-Updated-TPM-Tools.patch \
-    file://0003-luks-setup-add-usr-sbin-to-path.patch \
-    file://0001-init.cryptfs-add-usr-sbin-to-path.patch \
+    file://0003-luks-setup-remove-bashisms.patch \
+    file://0001-init.cryptfs-remove-bashisms.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"
 
@@ -79,7 +78,7 @@ RDEPENDS_${PN} += "\
     libtss2 \
     libtss2-tcti-device \
     libtss2-tcti-mssim \
-    bash \
+    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "zsh", "bash",d)} \
     busybox \
     procps \
     cryptsetup \
@@ -95,7 +94,7 @@ RDEPENDS_${PN} += "\
 # @net-tools: ifconfig
 # @util-linux: mount, umount, blkid
 RDEPENDS_${PN}-initramfs += "\
-    bash \
+    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "zsh", "bash",d)} \
     busybox \
     kmod \
     cryptsetup \

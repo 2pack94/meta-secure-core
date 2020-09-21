@@ -24,7 +24,7 @@ SRC_URI = "\
     file://0001-encrypt_secret.py-switch-to-python3.patch \
     file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
     file://0002-luks-setup.sh-Updated-TPM-Tools.patch \
-    file://0003-luks-setup-remove-bashisms.patch \
+    file://0003-luks-setup.sh-remove-bashisms.patch \
     file://0001-init.cryptfs-remove-bashisms.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"

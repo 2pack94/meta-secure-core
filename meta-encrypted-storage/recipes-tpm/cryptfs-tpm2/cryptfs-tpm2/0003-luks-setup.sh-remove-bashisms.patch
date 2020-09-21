@@ -1,5 +1,5 @@
 --- a/scripts/luks-setup.sh	2020-06-04 15:36:40.800535046 +0200
-+++ b/scripts/luks-setup.sh	2020-09-17 15:45:33.939108515 +0200
++++ b/scripts/luks-setup.sh	2020-09-21 16:55:18.804575191 +0200
 @@ -1,4 +1,4 @@
 -#!/bin/bash
 +#!/bin/sh
@@ -31,11 +31,11 @@
  
 -read -p "Do you wish to continue? [y/n] " -n 1
 +echo -n "Do you wish to continue? [y/n] "
-+read
++read answer
  echo
  
 -if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-+if [[ "$REPLY" != "y" ]] && [[ "$REPLY" != "Y" ]]; then
++if [[ "$answer" != "y" ]] && [[ "$answer" != "Y" ]]; then
      print_info "Installation cancelled"
      exit 0
  else

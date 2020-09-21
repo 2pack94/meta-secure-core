@@ -1,5 +1,5 @@
 --- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
-+++ b/scripts/init.cryptfs	2020-09-17 11:25:41.422054832 +0200
++++ b/scripts/init.cryptfs	2020-09-21 14:52:32.331438009 +0200
 @@ -1,4 +1,4 @@
 -#!/bin/bash
 +#!/bin/sh
@@ -15,3 +15,14 @@
  # The tmpfs filesystem used to temporarily place the
  # passphrase file.
  TMP_DIR="/tmp"
+@@ -363,8 +365,8 @@
+     unset TSS2_TCTI
+ }
+ 
+-
+-trap "trap_handler $?" SIGINT EXIT
++# 2: SIGINT, 0: EXIT
++trap "trap_handler $?" 2 0
+ 
+ # Detect the present of LUKS partition.
+ 

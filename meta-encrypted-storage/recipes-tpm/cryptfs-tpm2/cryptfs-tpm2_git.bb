@@ -78,7 +78,7 @@ RDEPENDS_${PN} += "\
     libtss2 \
     libtss2-tcti-device \
     libtss2-tcti-mssim \
-    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "zsh", "bash",d)} \
+    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "", "bash",d)} \
     busybox \
     procps \
     cryptsetup \
@@ -94,7 +94,7 @@ RDEPENDS_${PN} += "\
 # @net-tools: ifconfig
 # @util-linux: mount, umount, blkid
 RDEPENDS_${PN}-initramfs += "\
-    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "zsh", "bash",d)} \
+    ${@bb.utils.contains("INCOMPATIBLE_LICENSE", "GPL-3.0", "", "bash",d)} \
     busybox \
     kmod \
     cryptsetup \

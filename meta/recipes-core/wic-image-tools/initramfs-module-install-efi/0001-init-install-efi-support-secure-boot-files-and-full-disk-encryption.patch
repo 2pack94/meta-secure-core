@@ -1,5 +1,5 @@
 --- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
-+++ b/init-install-efi.sh	2020-09-21 16:58:30.312274483 +0200
++++ b/init-install-efi.sh	2020-09-22 17:05:24.283095695 +0200
 @@ -8,15 +8,20 @@
  
  PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -8,23 +8,108 @@
 +use_initramfs=0
 +
  # figure out how big of a boot partition we need
- boot_size=$(du -ms /run/media/$1/ | awk '{print $1}')
+-boot_size=$(du -ms /run/media/$1/ | awk '{print $1}')
++boot_size=$(du -ms "/run/media/$1/" | awk '{print $1}')
  # remove rootfs.img ($2) from the size if it exists, as its not installed to /boot
- if [ -e /run/media/$1/$2 ]; then
-     boot_size=$(( boot_size - $( du -ms /run/media/$1/$2 | awk '{print $1}') ))
+-if [ -e /run/media/$1/$2 ]; then
+-    boot_size=$(( boot_size - $( du -ms /run/media/$1/$2 | awk '{print $1}') ))
++if [ -e "/run/media/$1/$2" ]; then
++    boot_size=$(( boot_size - $( du -ms "/run/media/$1/$2" | awk '{print $1}') ))
  fi
 -# remove initrd from size since its not currently installed
 -if [ -e /run/media/$1/initrd ]; then
 -    boot_size=$(( boot_size - $( du -ms /run/media/$1/initrd | awk '{print $1}') ))
 +# remove initrd from size if its not installed
 +if [ $use_initramfs -eq 0 ]; then
-+    if [ -e /run/media/$1/initrd ]; then
-+        boot_size=$(( boot_size - $( du -ms /run/media/$1/initrd | awk '{print $1}') ))
++    if [ -e "/run/media/$1/initrd" ]; then
++        boot_size=$(( boot_size - $( du -ms "/run/media/$1/initrd" | awk '{print $1}') ))
 +    fi
  fi
  # add 10M to provide some extra space for users and account
  # for rounding in the above subtractions
-@@ -174,6 +179,8 @@
+@@ -27,7 +32,7 @@
+ 
+ # Get a list of hard drives
+ hdnamelist=""
+-live_dev_name=`cat /proc/mounts | grep ${1%/} | awk '{print $1}'`
++live_dev_name=$(grep "${1%/}" /proc/mounts | awk '{print $1}')
+ live_dev_name=${live_dev_name#\/dev/}
+ # Only strip the digit identifier if the device is not an mmc
+ case $live_dev_name in
+@@ -44,8 +49,8 @@
+ 
+ # Some eMMC devices have special sub devices such as mmcblk0boot0 etc
+ # we're currently only interested in the root device so pick them wisely
+-devices=`ls /sys/block/ | grep -v mmcblk` || true
+-mmc_devices=`ls /sys/block/ | grep "mmcblk[0-9]\{1,\}$"` || true
++devices=$(ls /sys/block/ | grep -v mmcblk) || true
++mmc_devices=$(ls /sys/block/ | grep "mmcblk[0-9]\{1,\}$") || true
+ devices="$devices $mmc_devices"
+ 
+ for device in $devices; do
+@@ -83,18 +88,18 @@
+ for hdname in $hdnamelist; do
+     # Display found hard drives and their basic info
+     echo "-------------------------------"
+-    echo /dev/$hdname
+-    if [ -r /sys/block/$hdname/device/vendor ]; then
++    echo "/dev/$hdname"
++    if [ -r "/sys/block/$hdname/device/vendor" ]; then
+         echo -n "VENDOR="
+-        cat /sys/block/$hdname/device/vendor
++        cat "/sys/block/$hdname/device/vendor"
+     fi
+-    if [ -r /sys/block/$hdname/device/model ]; then
++    if [ -r "/sys/block/$hdname/device/model" ]; then
+         echo -n "MODEL="
+-        cat /sys/block/$hdname/device/model
++        cat "/sys/block/$hdname/device/model"
+     fi
+-    if [ -r /sys/block/$hdname/device/uevent ]; then
++    if [ -r "/sys/block/$hdname/device/uevent" ]; then
+         echo -n "UEVENT="
+-        cat /sys/block/$hdname/device/uevent
++        cat "/sys/block/$hdname/device/uevent"
+     fi
+     echo
+ done
+@@ -125,7 +130,7 @@
+     exit 1
+ fi
+ 
+-device=/dev/$TARGET_DEVICE_NAME
++device="/dev/$TARGET_DEVICE_NAME"
+ 
+ #
+ # The udev automounter can cause pain here, kill it
+@@ -136,7 +141,7 @@
+ #
+ # Unmount anything the automounter had mounted
+ #
+-umount ${device}* 2> /dev/null || /bin/true
++umount "${device}*" 2> /dev/null || /bin/true
+ 
+ mkdir -p /tmp
+ 
+@@ -145,7 +150,7 @@
+     ln -sf /proc/mounts /etc/mtab
+ fi
+ 
+-disk_size=$(parted ${device} unit mb print | grep '^Disk .*: .*MB' | cut -d" " -f 3 | sed -e "s/MB//")
++disk_size=$(parted "${device}" unit mb print | grep '^Disk .*: .*MB' | cut -d" " -f 3 | sed -e "s/MB//")
+ 
+ swap_size=$((disk_size*swap_ratio/100))
+ rootfs_size=$((disk_size-boot_size-swap_size))
+@@ -166,7 +171,7 @@
+ fi
+ 
+ # USB devices also require rootwait
+-if [ -n `readlink /dev/disk/by-id/usb* | grep $TARGET_DEVICE_NAME` ]; then
++if [ -n "$(readlink /dev/disk/by-id/usb* | grep "$TARGET_DEVICE_NAME")" ]; then
+     rootwait="rootwait"
+ fi
+ 
+@@ -174,57 +179,83 @@
  rootfs=${device}${part_prefix}2
  swap=${device}${part_prefix}3
  
@@ -33,7 +118,38 @@
  echo "*****************"
  echo "Boot partition size:   $boot_size MB ($bootfs)"
  echo "Rootfs partition size: $rootfs_size MB ($rootfs)"
-@@ -204,6 +211,30 @@
+ echo "Swap partition size:   $swap_size MB ($swap)"
+ echo "*****************"
+ echo "Deleting partition table on ${device} ..."
+-dd if=/dev/zero of=${device} bs=512 count=35
++dd if="/dev/zero of=${device}" bs=512 count=35
+ 
+ echo "Creating new partition table on ${device} ..."
+-parted ${device} mklabel gpt
++parted "${device}" mklabel gpt
+ 
+ echo "Creating boot partition on $bootfs"
+-parted ${device} mkpart boot fat32 0% $boot_size
+-parted ${device} set 1 boot on
++parted "${device}" mkpart boot fat32 0% $boot_size
++parted "${device}" set 1 boot on
+ 
+ echo "Creating rootfs partition on $rootfs"
+-parted ${device} mkpart root ext4 $rootfs_start $rootfs_end
++parted "${device}" mkpart root ext4 $rootfs_start $rootfs_end
+ 
+ echo "Creating swap partition on $swap"
+-parted ${device} mkpart swap linux-swap $swap_start 100%
++parted "${device}" mkpart swap linux-swap $swap_start 100%
+ 
+-parted ${device} print
++parted "${device}" print
+ 
+ echo "Waiting for device nodes..."
+ C=0
+-while [ $C -ne 3 ] && [ ! -e $bootfs  -o ! -e $rootfs -o ! -e $swap ]; do
++while [ $C -ne 3 ] && [ ! -e "$bootfs" ] || [ ! -e "$rootfs" ] || [ ! -e "$swap" ]; do
+     C=$(( C + 1 ))
      sleep 1
  done
  
@@ -56,36 +172,73 @@
 +if [ $do_encryption -eq 1 ]; then
 +    ## create and open luks partition. Evict all objects for the first creation.
 +    cmd="luks-setup.sh -f -e -d ${rootfs} -n ${TARGET_DEVICE_NAME}_encrypted"
-+    #cmd="echo Y | $cmd"
++    cmd="echo Y | $cmd"
 +    eval "$cmd"
 +    rootfs="/dev/mapper/${TARGET_DEVICE_NAME}_encrypted"
 +fi
 +
  echo "Formatting $bootfs to vfat..."
- mkfs.vfat $bootfs
+-mkfs.vfat $bootfs
++mkfs.vfat "$bootfs"
  
-@@ -241,18 +272,29 @@
+ echo "Formatting $rootfs to ext4..."
+-mkfs.ext4 $rootfs
++mkfs.ext4 "$rootfs"
+ 
+ echo "Formatting swap partition...($swap)"
+-mkswap $swap
++mkswap "$swap"
+ 
+ mkdir /tgt_root
+ mkdir /src_root
+ mkdir -p /boot
+ 
+ # Handling of the target root partition
+-mount $rootfs /tgt_root
+-mount -o rw,loop,noatime,nodiratime /run/media/$1/$2 /src_root
++mount "$rootfs" /tgt_root
++mount -o rw,loop,noatime,nodiratime "/run/media/$1/$2" /src_root
+ echo "Copying rootfs files..."
+ cp -a /src_root/* /tgt_root
+ if [ -d /tgt_root/etc/ ] ; then
+-    boot_uuid=$(blkid -o value -s UUID ${bootfs})
+-    swap_part_uuid=$(blkid -o value -s PARTUUID ${swap})
++    boot_uuid=$(blkid -o value -s UUID "${bootfs}")
++    swap_part_uuid=$(blkid -o value -s PARTUUID "${swap}")
+     echo "/dev/disk/by-partuuid/$swap_part_uuid                swap             swap       defaults              0  0" >> /tgt_root/etc/fstab
+     echo "UUID=$boot_uuid              /boot            vfat       defaults              1  2" >> /tgt_root/etc/fstab
+     # We dont want udev to mount our root device while we're booting...
+@@ -236,23 +267,34 @@
+ umount /src_root
+ 
+ # Handling of the target boot partition
+-mount $bootfs /boot
++mount "$bootfs" /boot
+ echo "Preparing boot partition..."
  
  EFIDIR="/boot/EFI/BOOT"
  mkdir -p $EFIDIR
 -# Copy the efi loader
+-cp /run/media/$1/EFI/BOOT/*.efi $EFIDIR
 +# Copy the efi loader, configuration files and certificates
- cp /run/media/$1/EFI/BOOT/*.efi $EFIDIR
-+if [ $(ls -1 /run/media/$1/EFI/BOOT/*.inc 2>/dev/null | wc -l) -gt 0 ]; then
-+    cp /run/media/$1/EFI/BOOT/*.inc $EFIDIR
++cp "/run/media/$1/EFI/BOOT/*.efi" $EFIDIR
++if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.inc" 2>/dev/null | wc -l) -gt 0 ]; then
++    cp "/run/media/$1/EFI/BOOT/*.inc $EFIDIR"
 +fi
-+if [ $(ls -1 /run/media/$1/EFI/BOOT/*.p7b 2>/dev/null | wc -l) -gt 0 ]; then
-+    cp /run/media/$1/EFI/BOOT/*.p7b $EFIDIR
++if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.p7b" 2>/dev/null | wc -l) -gt 0 ]; then
++    cp "/run/media/$1/EFI/BOOT/*.p7b" $EFIDIR
 +fi
-+if [ -f /run/media/$1/EFI/BOOT/grubenv ]; then
-+    cp /run/media/$1/EFI/BOOT/grubenv $EFIDIR
++if [ -f "/run/media/$1/EFI/BOOT/grubenv" ]; then
++    cp "/run/media/$1/EFI/BOOT/grubenv" $EFIDIR
 +fi
  
- if [ -f /run/media/$1/EFI/BOOT/grub.cfg ]; then
+-if [ -f /run/media/$1/EFI/BOOT/grub.cfg ]; then
 -    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs})
-+    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs_orig})
++if [ -f "/run/media/$1/EFI/BOOT/grub.cfg" ]; then
++    root_part_uuid=$(blkid -o value -s PARTUUID "${rootfs_orig}")
      GRUBCFG="$EFIDIR/grub.cfg"
-     cp /run/media/$1/EFI/BOOT/grub.cfg $GRUBCFG
+-    cp /run/media/$1/EFI/BOOT/grub.cfg $GRUBCFG
++    cp "/run/media/$1/EFI/BOOT/grub.cfg" $GRUBCFG
      # Update grub config for the installed image
      # Delete the install entry
      sed -i "/menuentry 'install'/,/^}/d" $GRUBCFG
@@ -97,48 +250,57 @@
      # Delete any LABEL= strings
      sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
      # Replace root= and add additional standard boot options
-@@ -261,20 +303,22 @@
+@@ -260,21 +302,23 @@
+     sed -i "s/ root=[^ ]*/ root=PARTUUID=$root_part_uuid rw $rootwait quiet /g" $GRUBCFG
  fi
  
- if [ -d /run/media/$1/loader ]; then
+-if [ -d /run/media/$1/loader ]; then
 -    rootuuid=$(blkid -o value -s PARTUUID ${rootfs})
-+    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs_orig})
++if [ -d "/run/media/$1/loader" ]; then
++    root_part_uuid=$(blkid -o value -s PARTUUID "${rootfs_orig}")
      SYSTEMDBOOT_CFGS="/boot/loader/entries/*.conf"
      # copy config files for systemd-boot
-     cp -dr /run/media/$1/loader /boot
+-    cp -dr /run/media/$1/loader /boot
++    cp -dr "/run/media/$1/loader" /boot
      # delete the install entry
      rm -f /boot/loader/entries/install.conf
      # delete the initrd lines
 -    sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
 +    if [ $use_initramfs -eq 0 ]; then
-+        sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
++        sed -i "/initrd /d" "$SYSTEMDBOOT_CFGS"
 +    fi
      # delete any LABEL= strings
-     sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+-    sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
++    sed -i "s/ LABEL=[^ ]*/ /" "$SYSTEMDBOOT_CFGS"
      # delete any root= strings
-     sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
+-    sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
++    sed -i "s/ root=[^ ]*/ /" "$SYSTEMDBOOT_CFGS"
      # add the root= and other standard boot options
 -    sed -i "s@options *@options root=PARTUUID=$rootuuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
-+    sed -i "s@options *@options root=PARTUUID=$root_part_uuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
++    sed -i "s@options *@options root=PARTUUID=$root_part_uuid rw $rootwait quiet @" "$SYSTEMDBOOT_CFGS"
  fi
  
  umount /tgt_root
-@@ -287,10 +331,31 @@
-     done
+@@ -282,15 +326,32 @@
+ # Copy kernel artifacts. To add more artifacts just add to types
+ # For now just support kernel types already being used by something in OE-core
+ for types in bzImage zImage vmlinux vmlinuz fitImage; do
+-    for kernel in `find /run/media/$1/ -name $types*`; do
+-        cp $kernel /boot
+-    done
++    find "/run/media/$1/" -name "$types*" -exec cp {} /boot \;
  done
  
 +# Copy EFI Unified Kernel Images
-+if [ $(ls -1 /run/media/$1/EFI/Linux/*.efi 2>/dev/null | wc -l) -gt 0 ]; then
++if [ $(ls -1 "/run/media/$1/EFI/Linux/*.efi" 2>/dev/null | wc -l) -gt 0 ]; then
 +    mkdir /boot/EFI/Linux
-+    cp /run/media/$1/EFI/Linux/*.efi /boot/EFI/Linux/
++    cp "/run/media/$1/EFI/Linux/*.efi" /boot/EFI/Linux/
 +fi
 +
 +# Copy initramfs artifacts. To add more artifacts just add to types
 +if [ $use_initramfs -eq 1 ]; then
 +    for types in microcode initrd initramfs; do
-+        for initrd in `find /run/media/$1/ -name $types*`; do
-+            cp $initrd /boot
-+        done
++        find "/run/media/$1/" -name "$types*" -exec cp {} /boot \;
 +    done
 +fi
 +

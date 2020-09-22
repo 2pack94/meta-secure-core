@@ -1,5 +1,5 @@
 --- a/scripts/luks-setup.sh	2020-06-04 15:36:40.800535046 +0200
-+++ b/scripts/luks-setup.sh	2020-09-21 16:55:18.804575191 +0200
++++ b/scripts/luks-setup.sh	2020-09-22 14:44:20.419223835 +0200
 @@ -1,4 +1,4 @@
 -#!/bin/bash
 +#!/bin/sh
@@ -15,17 +15,78 @@
  print_critical() {
      printf "\033[1;35m"
      echo "$@"
-@@ -331,7 +333,8 @@
+@@ -111,8 +113,7 @@
+ 
+     [ $tpm_absent -eq 1 ] && print_info "No TPM device found" && return 1
+ 
+-    pgrep tpm2-abrmd >/dev/null
+-    [ $? -ne 0 ] && {
++    ! pgrep tpm2-abrmd >/dev/null && {
+         TPM2TOOLS_TCTI_NAME=device
+         export TPM2TOOLS_DEVICE_FILE=/dev/tpm0
+         TSS2_TCTI=device
+@@ -268,7 +269,7 @@
+ EOF
+ }
+ 
+-PROG_NAME=`basename $0`
++PROG_NAME=$(basename "$0")
+ OPT_FORCE_CREATION=0
+ OPT_UNMAP_LUKS=0
+ OPT_NO_TPM=0
+@@ -277,19 +278,19 @@
+ OPT_MAP_EXISTING_LUKS=0
+ OPT_NO_SETUP=0
+ OPT_OLD_LOCKOUT_AUTH=""
+-OPT_LOUCKOUT_AUTH=""
++OPT_LOCKOUT_AUTH=""
+ 
+ while [ $# -gt 0 ]; do
+     opt=$1
+     case $opt in
+         -d|--dev)
+-            shift && option_check $1 && OPT_LUKS_DEV="$1"
++            shift && option_check "$1" && OPT_LUKS_DEV="$1"
+             ;;
+ 	-N|--no-setup)
+             OPT_NO_SETUP=1
+             ;;
+ 	-n|--name)
+-	    shift && option_check $1 && OPT_LUKS_NAME="$1"
++	    shift && option_check "$1" && OPT_LUKS_NAME="$1"
+ 	    ;;
+ 	-m|--map-existing)
+             OPT_MAP_EXISTING_LUKS=1
+@@ -331,7 +332,8 @@
      shift
  done
  
 -trap "trap_handler $?" SIGINT EXIT
 +# 2: SIGINT, 0: EXIT
-+trap "trap_handler $?" 2 0
++trap 'trap_handler $?' 2 0
  
  OPT_LUKS_NAME="${OPT_LUKS_NAME:-$DEFAULT_ENCRYPTION_NAME}"
  
-@@ -388,10 +391,11 @@
+@@ -344,7 +346,7 @@
+ [ x"$OPT_LUKS_DEV" = x"" ] && print_error "LUKS device is not specified" &&
+     exit 1
+ 
+-TEMP_DIR=`mktemp -d /dev/luks-setup.XXXXXX`
++TEMP_DIR=$(mktemp -d /dev/luks-setup.XXXXXX)
+ print_verbose "Temporary directory created: $TEMP_DIR"
+ [ ! -d "$TEMP_DIR" ] && print_error "Failed to create the temporary directory" &&
+     exit 1
+@@ -357,8 +359,7 @@
+ 	fi
+ 
+ 	if [ $OPT_NO_TPM -eq 0 ] ; then
+-	    detect_tpm
+-	    [ $? -eq 0 ] && {
++	    detect_tpm && {
+                 TPM_ABSENT=0
+                 ! unseal_passphrase "$TEMP_DIR/passphrase" && exit 1
+             }
+@@ -388,10 +389,11 @@
  print_critical "******************************************************************"
  echo
  
@@ -39,3 +100,31 @@
      print_info "Installation cancelled"
      exit 0
  else
+@@ -399,14 +401,12 @@
+ fi
+ 
+ if [ $OPT_NO_TPM -eq 0 ]; then
+-    detect_tpm
+-    if [ $? -eq 0 ]; then
++    if detect_tpm ; then
+         if [ $OPT_EVICT_ALL -eq 1 ]; then
+             cmd="tpm2_clear"
+             [ -n "$OPT_OLD_LOCKOUT_AUTH" ] && cmd="${cmd} --oldLockPasswd $OPT_OLD_LOCKOUT_AUTH"
+             [ -n "$OPT_LOCKOUT_AUTH" ] && cmd="${cmd} --LockPasswd $OPT_LOCKOUT_AUTH"
+-            eval "$cmd"
+-            if [ $? -ne 0 ]; then
++            if ! eval "$cmd" ; then
+                 print_error "Failed to clear authorization values with the lockoutAuth specified"
+                 exit 1
+             fi
+@@ -417,8 +417,8 @@
+             cmd="tpm2_dictionarylockout --setup-parameters --max-tries 1 \
+                      --recovery-time 0 --lockout-recovery-time 0"
+             [ -n "$OPT_LOCKOUT_AUTH" ] && cmd="${cmd} --lockout-passwd $OPT_LOCKOUT_AUTH"
+-            eval "$cmd"
+-            if [ $? -ne 0 ]; then
++            
++            if ! eval "$cmd" ; then
+                 print_error "Failed to set the default DA policy"
+                 exit 1
+             fi

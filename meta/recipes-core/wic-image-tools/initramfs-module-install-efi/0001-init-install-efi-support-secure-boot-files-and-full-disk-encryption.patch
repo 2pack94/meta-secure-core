@@ -1,5 +1,5 @@
 --- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
-+++ b/init-install-efi.sh	2020-09-23 10:36:57.648523545 +0200
++++ b/init-install-efi.sh	2020-09-23 14:40:10.802293367 +0200
 @@ -8,15 +8,20 @@
  
  PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -9,20 +9,20 @@
 +
  # figure out how big of a boot partition we need
 -boot_size=$(du -ms /run/media/$1/ | awk '{print $1}')
-+boot_size=$(du -ms "/run/media/$1/" | awk '{print $1}')
++boot_size=$(du -ms /run/media/"$1"/ | awk '{print $1}')
  # remove rootfs.img ($2) from the size if it exists, as its not installed to /boot
 -if [ -e /run/media/$1/$2 ]; then
 -    boot_size=$(( boot_size - $( du -ms /run/media/$1/$2 | awk '{print $1}') ))
-+if [ -e "/run/media/$1/$2" ]; then
-+    boot_size=$(( boot_size - $( du -ms "/run/media/$1/$2" | awk '{print $1}') ))
++if [ -e /run/media/"$1"/"$2" ]; then
++    boot_size=$(( boot_size - $( du -ms /run/media/"$1"/"$2" | awk '{print $1}') ))
  fi
 -# remove initrd from size since its not currently installed
 -if [ -e /run/media/$1/initrd ]; then
 -    boot_size=$(( boot_size - $( du -ms /run/media/$1/initrd | awk '{print $1}') ))
 +# remove initrd from size if its not installed
 +if [ $use_initramfs -eq 0 ]; then
-+    if [ -e "/run/media/$1/initrd" ]; then
-+        boot_size=$(( boot_size - $( du -ms "/run/media/$1/initrd" | awk '{print $1}') ))
++    if [ -e /run/media/"$1"/initrd ]; then
++        boot_size=$(( boot_size - $( du -ms /run/media/"$1"/initrd | awk '{print $1}') ))
 +    fi
  fi
  # add 10M to provide some extra space for users and account
@@ -87,7 +87,7 @@
  # Unmount anything the automounter had mounted
  #
 -umount ${device}* 2> /dev/null || /bin/true
-+umount "${device}*" 2> /dev/null || /bin/true
++umount "${device}"* 2> /dev/null || /bin/true
  
  mkdir -p /tmp
  
@@ -100,16 +100,21 @@
  
  swap_size=$((disk_size*swap_ratio/100))
  rootfs_size=$((disk_size-boot_size-swap_size))
-@@ -166,7 +171,7 @@
+@@ -166,65 +171,94 @@
  fi
  
  # USB devices also require rootwait
 -if [ -n `readlink /dev/disk/by-id/usb* | grep $TARGET_DEVICE_NAME` ]; then
-+if [ -n "$(readlink /dev/disk/by-id/usb* | grep "$TARGET_DEVICE_NAME")" ]; then
-     rootwait="rootwait"
- fi
+-    rootwait="rootwait"
+-fi
++for f in /dev/disk/by-id/usb* ; do
++    if readlink "$f" | grep -q "$TARGET_DEVICE_NAME" ; then
++        rootwait="rootwait"
++        break
++    fi
++done
  
-@@ -174,57 +179,83 @@
+ bootfs=${device}${part_prefix}1
  rootfs=${device}${part_prefix}2
  swap=${device}${part_prefix}3
  
@@ -122,7 +127,7 @@
  echo "*****************"
  echo "Deleting partition table on ${device} ..."
 -dd if=/dev/zero of=${device} bs=512 count=35
-+dd if="/dev/zero of=${device}" bs=512 count=35
++dd if=/dev/zero of="${device}" bs=512 count=35
  
  echo "Creating new partition table on ${device} ..."
 -parted ${device} mklabel gpt
@@ -197,7 +202,7 @@
 -mount $rootfs /tgt_root
 -mount -o rw,loop,noatime,nodiratime /run/media/$1/$2 /src_root
 +mount "$rootfs" /tgt_root
-+mount -o rw,loop,noatime,nodiratime "/run/media/$1/$2" /src_root
++mount -o rw,loop,noatime,nodiratime /run/media/"$1"/"$2" /src_root
  echo "Copying rootfs files..."
  cp -a /src_root/* /tgt_root
  if [ -d /tgt_root/etc/ ] ; then
@@ -208,7 +213,7 @@
      echo "/dev/disk/by-partuuid/$swap_part_uuid                swap             swap       defaults              0  0" >> /tgt_root/etc/fstab
      echo "UUID=$boot_uuid              /boot            vfat       defaults              1  2" >> /tgt_root/etc/fstab
      # We dont want udev to mount our root device while we're booting...
-@@ -236,23 +267,34 @@
+@@ -236,23 +270,34 @@
  umount /src_root
  
  # Handling of the target boot partition
@@ -221,24 +226,24 @@
 -# Copy the efi loader
 -cp /run/media/$1/EFI/BOOT/*.efi $EFIDIR
 +# Copy the efi loader, configuration files and certificates
-+cp "/run/media/$1/EFI/BOOT/*.efi" $EFIDIR
-+if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.inc" 2>/dev/null | wc -l) -gt 0 ]; then
-+    cp "/run/media/$1/EFI/BOOT/*.inc" $EFIDIR
++cp /run/media/"$1"/EFI/BOOT/*.efi $EFIDIR
++if [ $(ls -1 /run/media/"$1"/EFI/BOOT/*.inc 2>/dev/null | wc -l) -gt 0 ]; then
++    cp /run/media/"$1"/EFI/BOOT/*.inc $EFIDIR
 +fi
-+if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.p7b" 2>/dev/null | wc -l) -gt 0 ]; then
-+    cp "/run/media/$1/EFI/BOOT/*.p7b" $EFIDIR
++if [ $(ls -1 /run/media/"$1"/EFI/BOOT/*.p7b 2>/dev/null | wc -l) -gt 0 ]; then
++    cp /run/media/"$1"/EFI/BOOT/*.p7b $EFIDIR
 +fi
-+if [ -f "/run/media/$1/EFI/BOOT/grubenv" ]; then
-+    cp "/run/media/$1/EFI/BOOT/grubenv" $EFIDIR
++if [ -f /run/media/"$1"/EFI/BOOT/grubenv ]; then
++    cp /run/media/"$1"/EFI/BOOT/grubenv $EFIDIR
 +fi
  
 -if [ -f /run/media/$1/EFI/BOOT/grub.cfg ]; then
 -    root_part_uuid=$(blkid -o value -s PARTUUID ${rootfs})
-+if [ -f "/run/media/$1/EFI/BOOT/grub.cfg" ]; then
++if [ -f /run/media/"$1"/EFI/BOOT/grub.cfg ]; then
 +    root_part_uuid=$(blkid -o value -s PARTUUID "${rootfs_orig}")
      GRUBCFG="$EFIDIR/grub.cfg"
 -    cp /run/media/$1/EFI/BOOT/grub.cfg $GRUBCFG
-+    cp "/run/media/$1/EFI/BOOT/grub.cfg" $GRUBCFG
++    cp /run/media/"$1"/EFI/BOOT/grub.cfg $GRUBCFG
      # Update grub config for the installed image
      # Delete the install entry
      sed -i "/menuentry 'install'/,/^}/d" $GRUBCFG
@@ -250,57 +255,55 @@
      # Delete any LABEL= strings
      sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
      # Replace root= and add additional standard boot options
-@@ -260,21 +302,23 @@
+@@ -260,21 +305,23 @@
      sed -i "s/ root=[^ ]*/ root=PARTUUID=$root_part_uuid rw $rootwait quiet /g" $GRUBCFG
  fi
  
 -if [ -d /run/media/$1/loader ]; then
 -    rootuuid=$(blkid -o value -s PARTUUID ${rootfs})
-+if [ -d "/run/media/$1/loader" ]; then
++if [ -d /run/media/"$1"/loader ]; then
 +    root_part_uuid=$(blkid -o value -s PARTUUID "${rootfs_orig}")
      SYSTEMDBOOT_CFGS="/boot/loader/entries/*.conf"
      # copy config files for systemd-boot
 -    cp -dr /run/media/$1/loader /boot
-+    cp -dr "/run/media/$1/loader" /boot
++    cp -dr /run/media/"$1"/loader /boot
      # delete the install entry
      rm -f /boot/loader/entries/install.conf
      # delete the initrd lines
 -    sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
 +    if [ $use_initramfs -eq 0 ]; then
-+        sed -i "/initrd /d" "$SYSTEMDBOOT_CFGS"
++        sed -i "/initrd /d" $SYSTEMDBOOT_CFGS
 +    fi
      # delete any LABEL= strings
--    sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
-+    sed -i "s/ LABEL=[^ ]*/ /" "$SYSTEMDBOOT_CFGS"
+     sed -i "s/ LABEL=[^ ]*/ /" $SYSTEMDBOOT_CFGS
      # delete any root= strings
--    sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
-+    sed -i "s/ root=[^ ]*/ /" "$SYSTEMDBOOT_CFGS"
+     sed -i "s/ root=[^ ]*/ /" $SYSTEMDBOOT_CFGS
      # add the root= and other standard boot options
 -    sed -i "s@options *@options root=PARTUUID=$rootuuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
-+    sed -i "s@options *@options root=PARTUUID=$root_part_uuid rw $rootwait quiet @" "$SYSTEMDBOOT_CFGS"
++    sed -i "s@options *@options root=PARTUUID=$root_part_uuid rw $rootwait quiet @" $SYSTEMDBOOT_CFGS
  fi
  
  umount /tgt_root
-@@ -282,15 +326,32 @@
+@@ -282,15 +329,32 @@
  # Copy kernel artifacts. To add more artifacts just add to types
  # For now just support kernel types already being used by something in OE-core
  for types in bzImage zImage vmlinux vmlinuz fitImage; do
 -    for kernel in `find /run/media/$1/ -name $types*`; do
 -        cp $kernel /boot
 -    done
-+    find "/run/media/$1/" -name "$types*" -exec cp {} /boot \;
++    find /run/media/"$1"/ -name "$types*" -exec cp {} /boot \;
  done
  
 +# Copy EFI Unified Kernel Images
-+if [ $(ls -1 "/run/media/$1/EFI/Linux/*.efi" 2>/dev/null | wc -l) -gt 0 ]; then
++if [ $(ls -1 /run/media/"$1"/EFI/Linux/*.efi 2>/dev/null | wc -l) -gt 0 ]; then
 +    mkdir /boot/EFI/Linux
-+    cp "/run/media/$1/EFI/Linux/*.efi" /boot/EFI/Linux/
++    cp /run/media/"$1"/EFI/Linux/*.efi /boot/EFI/Linux/
 +fi
 +
 +# Copy initramfs artifacts. To add more artifacts just add to types
 +if [ $use_initramfs -eq 1 ]; then
 +    for types in microcode initrd initramfs; do
-+        find "/run/media/$1/" -name "$types*" -exec cp {} /boot \;
++        find /run/media/"$1"/ -name "$types*" -exec cp {} /boot \;
 +    done
 +fi
 +

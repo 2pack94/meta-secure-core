@@ -1,5 +1,5 @@
 --- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
-+++ b/init-install-efi.sh	2020-09-22 17:05:24.283095695 +0200
++++ b/init-install-efi.sh	2020-09-23 10:36:57.648523545 +0200
 @@ -8,15 +8,20 @@
  
  PATH=/sbin:/bin:/usr/sbin:/usr/bin
@@ -223,7 +223,7 @@
 +# Copy the efi loader, configuration files and certificates
 +cp "/run/media/$1/EFI/BOOT/*.efi" $EFIDIR
 +if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.inc" 2>/dev/null | wc -l) -gt 0 ]; then
-+    cp "/run/media/$1/EFI/BOOT/*.inc $EFIDIR"
++    cp "/run/media/$1/EFI/BOOT/*.inc" $EFIDIR
 +fi
 +if [ $(ls -1 "/run/media/$1/EFI/BOOT/*.p7b" 2>/dev/null | wc -l) -gt 0 ]; then
 +    cp "/run/media/$1/EFI/BOOT/*.p7b" $EFIDIR

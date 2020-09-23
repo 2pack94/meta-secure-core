@@ -34,7 +34,7 @@ done
 mkdir -p "$ROOTFS_MOUNT"
 
 try_to_mount_rootfs() {
-    local mount_flags="rw,noatime,iversion"
+    mount_flags="rw,noatime,iversion"
 
     if [ $is_encrypted -eq 1 ] ; then
         [ -x /init.cryptfs ] &&

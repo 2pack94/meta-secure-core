@@ -1,5 +1,5 @@
 --- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
-+++ b/scripts/init.cryptfs	2020-09-22 15:51:13.531163078 +0200
++++ b/scripts/init.cryptfs	2020-09-23 10:48:41.608498740 +0200
 @@ -1,4 +1,4 @@
 -#!/bin/bash
 +#!/bin/sh
@@ -34,7 +34,7 @@
 -    if [ "$rawdev" == "" ] ; then
 -	rawdev=`blkid -t PARTLABEL=$1 -l | awk -F: '{ print $1 }'`
 +    if [ "$rawdev" = "" ] ; then
-+	rawdev=$(blkid -t PARTLABEL="$1" -l | awk -F: '{ print $1 }')
++        rawdev=$(blkid -t PARTLABEL="$1" -l | awk -F: '{ print $1 }')
      fi
 -    echo $rawdev
 +    echo "$rawdev"
@@ -157,6 +157,15 @@
  
      return $err
  }
+@@ -353,7 +355,7 @@
+ 
+     [ $TPM_TIS_MODULE_LOADED -eq 1 ] && modprobe --quiet -r tpm_tis
+     [ $TPM_CRB_MODULE_LOADED -eq 1 ] && modprobe --quiet -r tpm_crb    
+-    [ ! -z "$TPM_DEVICE" ] && rm -f "$TPM_DEVICE" 2>/dev/null
++    [ -n "$TPM_DEVICE" ] && rm -f "$TPM_DEVICE" 2>/dev/null
+ 
+     if [ $TMP_DIR_MOUNTED -eq 1 ]; then
+         umount "$TMP_DIR" 2>/dev/null
 @@ -363,8 +365,8 @@
      unset TSS2_TCTI
  }

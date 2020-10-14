@@ -340,9 +340,15 @@ EOF
 
     pinentry=""
     if [ "$gpg_ver" = "2" ] ; then
-            pinentry="--pinentry-mode=loopback"
-            echo "allow-loopback-pinentry" > $key_dir/gpg-agent.conf
+            gpg_ver_whole=`gpg --version | head -1 | awk '{ print $3 }'`
+            if [ "$gpg_ver_whole" != "2.0.22" ] ; then
+                pinentry="--pinentry-mode=loopback"
+                echo "allow-loopback-pinentry" > $key_dir/gpg-agent.conf
+            fi
             gpg-connect-agent --homedir "$key_dir" reloadagent /bye
+            if [ $? != 0 ] ; then
+                gpg-agent --homedir "$key_dir" --daemon
+            fi
     fi
     $GPG_BIN --homedir "$key_dir" --batch --yes --gen-key "$key_dir/gen_keyring"
     if [ $? != 0 ] ; then
@@ -521,6 +527,8 @@ RPM_KEYS_DIR = "\${MASTER_KEYS_DIR}/rpm_keys"
 BOOT_KEYS_DIR = "\${MASTER_KEYS_DIR}/boot_keys"
 MOK_SB_KEYS_DIR = "\${MASTER_KEYS_DIR}/mok_sb_keys"
 SYSTEM_TRUSTED_KEYS_DIR = "\${MASTER_KEYS_DIR}/system_trusted_keys"
+SECONDARY_TRUSTED_KEYS_DIR = "\${MASTER_KEYS_DIR}/secondary_trusted_keys"
+MODSIGN_KEYS_DIR = "\${MASTER_KEYS_DIR}/modsign_keys"
 UEFI_SB_KEYS_DIR = "\${MASTER_KEYS_DIR}/uefi_sb_keys"
 GRUB_PUB_KEY = "\${MASTER_KEYS_DIR}/boot_keys/boot_pub_key"
 GRUB_PW_FILE = "\${MASTER_KEYS_DIR}/boot_keys/boot_cfg_pw"

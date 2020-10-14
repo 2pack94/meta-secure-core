@@ -1,0 +1,225 @@
+--- a/scripts/init.cryptfs	2019-12-19 12:05:33.834441000 +0100
++++ b/scripts/init.cryptfs	2020-09-23 10:48:41.608498740 +0200
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ # Initramfs script called by /init
+ #
+@@ -43,6 +43,8 @@
+ # Global constant settings
+ #
+ 
++PATH=$PATH:'/usr/sbin':'/sbin'
++
+ # The tmpfs filesystem used to temporarily place the
+ # passphrase file.
+ TMP_DIR="/tmp"
+@@ -116,7 +118,7 @@
+ }
+ 
+ get_dev_uuid() {
+-    blkid -t UUID=$1 -l | awk -F: '{ print $1 }'
++    blkid -t UUID="$1" -l | awk -F: '{ print $1 }'
+ }
+ 
+ get_dev_partuuid() {
+@@ -124,16 +126,16 @@
+ }
+ 
+ get_dev_label() {
+-    rawdev=`blkid -t LABEL=$1 -l | awk -F: '{print $1}'`
++    rawdev=$(blkid -t LABEL="$1" -l | awk -F: '{print $1}')
+     # Also try the partition label for the same name if not found
+-    if [ "$rawdev" == "" ] ; then
+-	rawdev=`blkid -t PARTLABEL=$1 -l | awk -F: '{ print $1 }'`
++    if [ "$rawdev" = "" ] ; then
++        rawdev=$(blkid -t PARTLABEL="$1" -l | awk -F: '{ print $1 }')
+     fi
+-    echo $rawdev
++    echo "$rawdev"
+ }
+ 
+ get_dev_rawdev() {
+-    [ -e /sys/class/block/`basename "$1"` ] && echo $1
++    [ -e /sys/class/block/"$(basename "$1")" ] && echo "$1"
+ }
+ 
+ parse_rootfs_dev_path() {
+@@ -151,13 +153,13 @@
+         [ -n "$dev_name" ] && break
+     done
+ 
+-    if [ -z "$dev_name" -o -z "$dev_type" ]; then
++    if [ -z "$dev_name" ] || [ -z "$dev_type" ]; then
+         print_error "Empty root= option, cannot proceed to boot!"
+         return 1
+     fi
+ 
+-    [ -n "$ret_type" ] && eval $ret_type="$dev_type"
+-    [ -n "$ret_name" ] && eval $ret_name="$dev_name"
++    [ -n "$ret_type" ] && eval "$ret_type"="$dev_type"
++    [ -n "$ret_name" ] && eval "$ret_name"="$dev_name"
+ 
+     print_verbose "device path: $dev_type=$dev_name"
+ 
+@@ -171,14 +173,14 @@
+     local rawdev
+ 
+     case "$type" in
+-        UUID)     rawdev=$(get_dev_uuid $name) ;;
+-        PARTUUID) rawdev=$(get_dev_partuuid $name) ;;
+-        LABEL)    rawdev=$(get_dev_label $name) ;;
+-        RAWDEV)   rawdev=$(get_dev_rawdev $name) ;;
++        UUID)     rawdev=$(get_dev_uuid "$name") ;;
++        PARTUUID) rawdev=$(get_dev_partuuid "$name") ;;
++        LABEL)    rawdev=$(get_dev_label "$name") ;;
++        RAWDEV)   rawdev=$(get_dev_rawdev "$name") ;;
+     esac
+ 
+     if [ -n "$rawdev" ] ; then
+-        [ -n "$ret_rawdev" ] && eval $ret_rawdev="$rawdev"
++        [ -n "$ret_rawdev" ] && eval "$ret_rawdev"="$rawdev"
+         print_info "Found root device: $rawdev"
+         return 0
+     fi
+@@ -190,11 +192,10 @@
+     local retry=0
+ 
+     while [ $retry -lt $MAX_TIMEOUT_FOR_WAITING_RAWDEV ]; do
+-        __get_rawdev "$1" "$2" "$3"
+-        [ $? -eq 0 ] && return 0
++        __get_rawdev "$1" "$2" "$3" && return 0
+ 
+         sleep 0.1
+-        retry=$(($retry+1))
++        retry=$((retry+1))
+     done
+ 
+     print_error "Unable to find raw device for $1=$2!"
+@@ -234,9 +235,9 @@
+     for _name in $name_in_dev; do
+         [ -c "/dev/$_name" ] && break
+ 
+-        local major=$(cat "/sys/class/tpm/$name/dev" | cut -d ":" -f 1)
+-        local minor=$(cat "/sys/class/tpm/$name/dev" | cut -d ":" -f 2)
+-        ! mknod "/dev/$_name" c $major $minor &&
++        local major=$(cut -d ":" -f 1 "/sys/class/tpm/$name/dev")
++        local minor=$(cut -d ":" -f 2 "/sys/class/tpm/$name/dev")
++        ! mknod "/dev/$_name" c "$major" "$minor" &&
+             print_error "Unable to create tpm device node $_name." && return 1
+ 
+         TPM_DEVICE="/dev/$_name"
+@@ -244,7 +245,7 @@
+         break
+     done
+ 
+-    [ -n "$ret_absent" ] && eval $ret_absent=$tpm_absent
++    [ -n "$ret_absent" ] && eval "$ret_absent"="$tpm_absent"
+ 
+     print_info "TPM device /dev/$_name detected."
+ 
+@@ -254,7 +255,7 @@
+ open_luks_part_with_encrypted_passphrase() {
+     local luks_rawdev="$1"
+ 
+-    while [ 1 ]; do
++    while true ; do
+         # Unseal the passphrase
+         cryptfs-tpm2 -q unseal passphrase -P auto -o "$TMP_DIR/$PASSPHRASE" 2>/dev/null
+         local res=$?
+@@ -278,13 +279,13 @@
+ open_luks_part_with_typed_passphrase() {
+     local luks_rawdev="$1"
+     local i=1
+-    for i in `seq $MAX_PASSPHRASE_RETRY_COUNT`; do
++    for i in $(seq $MAX_PASSPHRASE_RETRY_COUNT); do
+         cryptsetup luksOpen --key-file - "$luks_rawdev" "$LUKS_NAME" &&
+             print_verbose "The LUKS partition $luks_rawdev is opened with the typed passphrase" &&
+             return 0
+ 
+-        [ $(($MAX_PASSPHRASE_RETRY_COUNT - $i)) -ne 0 ] &&
+-            print_warning "Passphrase incorrect. $(($MAX_PASSPHRASE_RETRY_COUNT - $i))-time remaining ..."
++        [ $((MAX_PASSPHRASE_RETRY_COUNT - i)) -ne 0 ] &&
++            print_warning "Passphrase incorrect. $((MAX_PASSPHRASE_RETRY_COUNT - i))-time remaining ..."
+     done
+ 
+     print_error "Failed to open the LUKS partition $luks_rawdev with the typed passphrase"
+@@ -330,8 +331,9 @@
+ mount_luks() {
+     local err=0
+ 
+-    mount -o "$ROOTFS_MODE" "/dev/mapper/$LUKS_NAME" "$ROOTFS_DIR" ||
+-        (err=1 && [ -e "/dev/mapper/$LUKS_NAME" ] && cryptsetup luksClose "$LUKS_NAME")
++    mount -o "$ROOTFS_MODE" "/dev/mapper/$LUKS_NAME" "$ROOTFS_DIR" || {
++        err=1 && [ -e "/dev/mapper/$LUKS_NAME" ] && cryptsetup luksClose "$LUKS_NAME"
++    }
+ 
+     return $err
+ }
+@@ -353,7 +355,7 @@
+ 
+     [ $TPM_TIS_MODULE_LOADED -eq 1 ] && modprobe --quiet -r tpm_tis
+     [ $TPM_CRB_MODULE_LOADED -eq 1 ] && modprobe --quiet -r tpm_crb    
+-    [ ! -z "$TPM_DEVICE" ] && rm -f "$TPM_DEVICE" 2>/dev/null
++    [ -n "$TPM_DEVICE" ] && rm -f "$TPM_DEVICE" 2>/dev/null
+ 
+     if [ $TMP_DIR_MOUNTED -eq 1 ]; then
+         umount "$TMP_DIR" 2>/dev/null
+@@ -363,8 +365,8 @@
+     unset TSS2_TCTI
+ }
+ 
+-
+-trap "trap_handler $?" SIGINT EXIT
++# 2: SIGINT, 0: EXIT
++trap 'trap_handler $?' 2 0
+ 
+ # Detect the present of LUKS partition.
+ 
+@@ -374,8 +376,7 @@
+ ! parse_rootfs_dev_path rootfs_dev_path_type rootfs_dev_path_name && exit 1
+ 
+ rootfs_is_luks=0
+-get_rawdev $rootfs_dev_path_type $rootfs_dev_path_name rootfs_rawdev
+-if [ $? -eq 0 ]; then
++get_rawdev "$rootfs_dev_path_type" "$rootfs_dev_path_name" rootfs_rawdev && {
+     # Check whether the rootfs device is a LUKS partition.
+     for luks_rawdev in $luks_rawdev_pathes; do
+         [ "$rootfs_rawdev" = "$luks_rawdev" ] && rootfs_is_luks=1 && break
+@@ -385,14 +386,14 @@
+         print_info "The specified rootfs is not a LUKS partition"
+         exit 1
+     fi
+-fi
++}
+ 
+ # root=LABEL=xxx cannot be parsed until the LUKS partition is mounted.
+-[ $rootfs_is_luks -eq 0 -a "$rootfs_dev_path_type" != "LABEL" ] &&
++[ $rootfs_is_luks -eq 0 ] && [ "$rootfs_dev_path_type" != "LABEL" ] &&
+     print_error "Unable to locate the specified rootfs" && exit 1
+ 
+ # Overwrite LUKS_NAME if root=LABEL=xxx is specified.
+-[ $rootfs_is_luks -eq 0 -a "$rootfs_dev_path_type" = "LABEL" -a -n "$rootfs_dev_path_name" ] &&
++[ $rootfs_is_luks -eq 0 ] && [ "$rootfs_dev_path_type" = "LABEL" ] && [ -n "$rootfs_dev_path_name" ] &&
+     LUKS_NAME="$rootfs_dev_path_name"
+ 
+ # Make sure the plain passphrase will be saved in a RAM-based
+@@ -432,13 +433,13 @@
+ # Check whether the LUKS partition is specified in root=.
+ err=1
+ for luks_rawdev in $luks_rawdev_pathes; do
+-    [ -n "$rootfs_rawdev" -a "$rootfs_rawdev" != "$luks_rawdev" ] && continue
++    [ -n "$rootfs_rawdev" ] && [ "$rootfs_rawdev" != "$luks_rawdev" ] && continue
+  
+-    ! map_luks $luks_rawdev $tpm_absent && break
++    ! map_luks "$luks_rawdev" $tpm_absent && break
+     ! mount_luks && break
+ 
+-    [ -z "$rootfs_rawdev" ] && ! get_rawdev $rootfs_dev_path_type \
+-        $rootfs_dev_path_name rootfs_rawdev && {
++    [ -z "$rootfs_rawdev" ] && ! get_rawdev "$rootfs_dev_path_type" \
++        "$rootfs_dev_path_name" rootfs_rawdev && {
+             umount "$ROOTFS_DIR" 2>/dev/null
+             cryptsetup luksClose "$LUKS_NAME" 2>/dev/null
+             continue

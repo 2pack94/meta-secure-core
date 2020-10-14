@@ -6,14 +6,15 @@ INIT="/sbin/init"
 
 is_encrypted=0
 
+mkdir -p /proc /sys /dev /run
 mount -t proc none /proc
 mount -t sysfs none /sys
 mount -t devtmpfs none /dev
 mount -t tmpfs none /run
 
-cmdline="`cat /proc/cmdline`"
+cmdline="$(cat /proc/cmdline)"
 for arg in $cmdline; do
-    optarg=`expr "x$arg" : 'x[^=]*=\(.*\)'`
+    optarg=$(expr "x$arg" : 'x[^=]*=\(.*\)')
 
     case "$arg" in
     root=*)
@@ -33,7 +34,11 @@ done
 mkdir -p "$ROOTFS_MOUNT"
 
 try_to_mount_rootfs() {
+<<<<<<< HEAD
     local mount_flags="rw,noatime,iversion"
+=======
+    mount_flags="rw,noatime,iversion"
+>>>>>>> zeus_gplv3_free
 
     if [ $is_encrypted -eq 1 ] ; then
         [ -x /init.cryptfs ] &&
@@ -49,16 +54,16 @@ try_to_mount_rootfs() {
 
 echo "Waiting for root device to be ready ..."
 
-while [ 1 ]; do
+while true ; do
     try_to_mount_rootfs && break
     sleep 0.1
 done
 
 # Move the mount points of some filesystems over to
 # the corresponding directories under the real root filesystem.
-for dir in `cat /proc/mounts | grep -v rootfs | awk '{ print $2 }'` ; do
-    mkdir -p "$ROOTFS_MOUNT"/${dir##*/}
-    mount -nv --move "$dir" "$ROOTFS_MOUNT"/${dir##*/}
+for dir in $(grep -v rootfs /proc/mounts | awk '{ print $2 }') ; do
+    mkdir -p "$ROOTFS_MOUNT/${dir##*/}"
+    mount -nv --move "$dir" "$ROOTFS_MOUNT/${dir##*/}"
 done
 
 cd "$ROOTFS_MOUNT"
@@ -77,7 +82,7 @@ cd "$ROOTFS_MOUNT"
 }
 
 exec "$switch_root" "$ROOTFS_MOUNT" "$INIT" || {
-    "$ROOTFS_MOUNT/bin/echo.coreutils" "Couldn't switch to the real rootfs"
+    "$ROOTFS_MOUNT/bin/echo" "Couldn't switch to the real rootfs"
     # Cause kernel panic.
     exit 2
 }

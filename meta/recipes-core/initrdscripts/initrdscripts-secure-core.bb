@@ -31,16 +31,10 @@ FILES_${PN} = "\
 # Install the minimal stuffs only, and don't care how the external
 # environment is configured.
 
-# @coreutils: echo, cat, sleep, switch_root, expr, mkdir
-# @util-linux: mount
-# @grep: grep
-# @gawk: awk
+# @busybox: echo, cat, sleep, switch_root, expr, mkdir, mount, grep, awk
 # @eudev or udev: udevd, udevadm
 RDEPENDS_${PN} += "\
-    coreutils \
-    util-linux-mount \
-    grep \
-    gawk \
+    busybox \
     ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', 'udev', 'eudev', d)} \
 "
 

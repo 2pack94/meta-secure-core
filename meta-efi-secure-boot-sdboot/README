@@ -1,0 +1,118 @@
+### Overview
+This layer implements UEFI Secure Boot for the systemd-boot bootloader.
+An EFI PE executable called unified kernel image, that can be loaded and verified by systemd-boot is generated.
+It contains kernel, initramfs, os-release file, kernel command line and efi stub loader.
+The unified kernel image embeds all metadata which is normally present in a systemd-boot boot entry in /loader/entries/*.conf.
+unified images will be searched for under /EFI/Linux/ and must have the extension .efi
+Is is necessary to use this single signed image, as systemd-boot cannot verify non-PE files such as config files or the initramfs.
+When Secure Boot is enabled, the kernel command line inside the unified kernel image will always take priority over
+kernel parameters typed into the console or from an external .conf file.
+
+A complete boot flow looks like as following:
+- UEFI firmware boot manager (UEFI Secure Boot enabled) ->
+    - systemd-boot (verified by a DB certificate) ->
+        - unified kernel image (verified by a DB certificate)
+
+This layer depends on the meta-intel layer.
+meta-intal provides bitbake classes that are inherited to create the unified kernel image as well as signing the necessary components.
+signed compoents are: kernel, unified kernel image, systemd-boot bootloader, LockDown.efi
+The build system uses the UEFI Secure Boot signing key DB.key to sign every component
+
+### relevant Bitbake Variables
+The following Parameters have to be set inside local.conf:
+DISTRO_FEATURES_NATIVE_append += "efi-secure-boot"
+DISTRO_FEATURES_append += "efi-secure-boot"
+optional Parameter to set the path to a custom os-release file:
+OS_RELEASE_FILE = "path/to/os-release"
+The following Parameters have to be set inside bblayers.conf:
+IMAGE_INSTALL_append += "packagegroup-efi-secure-boot-sdboot"
+This layer must be added to BBLAYERS
+
+### Key Management
+Refer to meta-signing-key/README.md for the initial cognition about key
+management.
+
+Note that the sample key and user key are the concepts in the key signing
+model according to the ownership and secrecy. In UEFI Secure Boot, a policy
+object such as PK, KEK, DB and DBX is always mapped to a key useed by the
+key signing model.
+
+#### Sample Keys
+This layer, by default, use **the sample keys** to sign and verify images for
+the purpose of development and demonstration. **Please ensure you know what your
+risk is to use the sample keys in your product, because they are completely
+public.**
+
+The sample keys used for UEFI Secure Boot are centrally placed under
+meta-signing-key/files/uefi_sb_keys/.
+
+- PK.crt  
+  The X509 certificate enrolled to UEFI firmware, used to update/delete PK/KEK.
+
+- PK.key  
+  The private key corresponding to PK.crt, used to sign the EFI signature
+  list for PK/KEK enrollment.
+
+- KEK.crt  
+  The X509 certificate enrolled to UEFI firmware, used to update/delete
+  DB/DBX.
+
+- KEK.key  
+  The private key corresponding to KEK.crt, used to sign the EFI signature
+  list for DB/DBX enrollment.
+
+- DB.crt  
+  The X509 certificate enrolled to UEFI firmware, used to verify the images
+  directly loaded by UEFI firmware.
+
+- DB.key  
+  The private key corresponding to DB.crt, used to sign the images directly
+  loaded by UEFI firmware.
+
+- DBX  
+  This directory contains any number of X509 certificate enrolled to UEFI
+  firmware, used to blacklist the revoked certificates. Note the revoked
+  certificates must be PEM-formatted.
+
+#### User Keys
+Refer to meta-signing-key/README.md for the details about how to generate/use
+the keys owned by the end user.
+
+#### Automatic Certificate Provision
+The certificate provision is required to enable UEFI Secure Boot. By default,
+the system may be already provisioned with default certificates enrolled during
+the manufacture.
+
+In order to use the bootloader signed by the sample or self-owned
+key to boot up the system, this layer provides a process of automatic
+certificate provison. The detailed descriptions are given below.
+
+##### Remove the enrolled certificates in BIOS setup
+The EFI/BOOT/LockDown.efi is used to run the automatic certificate provision.
+However, LockDown.efi cannot be launched if UEFI Secure Boot is already
+enabled. In addition, the enrolled certificates may be not the ones the user
+hopes to use.
+
+The provisioned certificates can be removed through BIOS setup. The detailed
+steps may vary between the systems. Refer to the corresponding BIOS manual for
+the instructions.
+
+##### Launch the automatic certificate provision
+The Lockdown.efi will automatically provision UEFI Secure Boot after removing
+the enrolled certificates in BIOS setup. More specifically, the new PK, KEK, DB
+and DBX (if any) will be enrolled and begin to take affect after a reboot.
+
+The new PK, KEK, DB and DBX (if any) were built into LockDown.efi during the
+build.
+
+The LockDown.efi is an efi executable that can be loaded by the UEFI.
+To load LockDown.efi with systemd-boot, a boot config file loader/entries/LockDown.conf
+that creates a boot entry for LockDown.efi is generated during the build.
+
+##### Turn on UEFI Secure Boot option
+If UEFI Secure Boot option was turned off, the user has to enter to BIOS setup
+again after the automatic certificate provision in order to manually turn on
+this option.
+
+If this option was not turned off when removing the enrolled certificates in
+BIOS setup, this step is skippable.

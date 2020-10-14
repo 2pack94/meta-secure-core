@@ -1,0 +1,222 @@
+--- a/scripts/luks-setup.sh	2020-06-04 15:36:40.800535046 +0200
++++ b/scripts/luks-setup.sh	2020-09-23 10:34:36.500528518 +0200
+@@ -1,4 +1,4 @@
+-#!/bin/bash
++#!/bin/sh
+ 
+ # The wrapper script for the creation of LUKS partition
+ #
+@@ -46,6 +46,8 @@
+ TPM_ABSENT=1
+ TEMP_DIR=""
+ 
++PATH=$PATH:'/usr/sbin'
++
+ print_critical() {
+     printf "\033[1;35m"
+     echo "$@"
+@@ -105,14 +107,13 @@
+         grep -q "TPM 2.0 Device" "/sys/class/tpm/$dev/device/firmware_node/description" 2>/dev/null &&
+             tpm_absent=0 && break
+ 
+-	# Support virtual TPM
+-	ls "/sys/class/tpm/$dev/device/driver" 2> /dev/null | grep -q MSFT0101 && tpm_absent=0 && break
++        # Support virtual TPM
++        ls "/sys/class/tpm/$dev/device/driver" 2> /dev/null | grep -q MSFT0101 && tpm_absent=0 && break
+     done
+ 
+     [ $tpm_absent -eq 1 ] && print_info "No TPM device found" && return 1
+ 
+-    pgrep tpm2-abrmd >/dev/null
+-    [ $? -ne 0 ] && {
++    ! pgrep tpm2-abrmd >/dev/null && {
+         TPM2TOOLS_TCTI_NAME=device
+         export TPM2TOOLS_DEVICE_FILE=/dev/tpm0
+         TSS2_TCTI=device
+@@ -140,9 +141,9 @@
+ 
+     if [ $err -eq 0 ]; then
+         ! cryptfs-tpm2 -q unseal passphrase -P auto -o "$passphrase" &&
+-	    print_error "Unable to unseal the passphrase" && return 1
++        print_error "Unable to unseal the passphrase" && return 1
+     else
+-	print_error "Unable to contact the resource manager" && return 1
++        print_error "Unable to contact the resource manager" && return 1
+     fi
+ 
+     [ $RESOURCEMGR_STARTED -eq 1 ] && pkill tpm2-abrmd
+@@ -268,7 +269,7 @@
+ EOF
+ }
+ 
+-PROG_NAME=`basename $0`
++PROG_NAME=$(basename "$0")
+ OPT_FORCE_CREATION=0
+ OPT_UNMAP_LUKS=0
+ OPT_NO_TPM=0
+@@ -277,48 +278,48 @@
+ OPT_MAP_EXISTING_LUKS=0
+ OPT_NO_SETUP=0
+ OPT_OLD_LOCKOUT_AUTH=""
+-OPT_LOUCKOUT_AUTH=""
++OPT_LOCKOUT_AUTH=""
+ 
+ while [ $# -gt 0 ]; do
+     opt=$1
+     case $opt in
+         -d|--dev)
+-            shift && option_check $1 && OPT_LUKS_DEV="$1"
++            shift && option_check "$1" && OPT_LUKS_DEV="$1"
+             ;;
+-	-N|--no-setup)
++        -N|--no-setup)
+             OPT_NO_SETUP=1
+             ;;
+-	-n|--name)
+-	    shift && option_check $1 && OPT_LUKS_NAME="$1"
+-	    ;;
+-	-m|--map-existing)
++        -n|--name)
++            shift && option_check "$1" && OPT_LUKS_NAME="$1"
++            ;;
++        -m|--map-existing)
+             OPT_MAP_EXISTING_LUKS=1
+             ;;
+-	-f|--force)
+-	    OPT_FORCE_CREATION=1
+-	    ;;
+-	-u|--unmap)
+-	    OPT_UNMAP_LUKS=1
+-	    ;;
+-	-t|--no-tpm)
+-	    OPT_NO_TPM=1
+-	    ;;
+-	-e|--evict-all)
+-	    OPT_EVICT_ALL=1
+-	    ;;
++        -f|--force)
++            OPT_FORCE_CREATION=1
++            ;;
++        -u|--unmap)
++            OPT_UNMAP_LUKS=1
++            ;;
++        -t|--no-tpm)
++            OPT_NO_TPM=1
++            ;;
++        -e|--evict-all)
++            OPT_EVICT_ALL=1
++            ;;
+         --old-lockout-auth)
+             shift && option_check "$1" && OPT_OLD_LOCKOUT_AUTH="$1"
+             ;;
+         --lockout-auth)
+             shift && option_check "$1" && OPT_LOCKOUT_AUTH="$1"
+             ;;
+-	-V|--verbose)
+-	    OPT_VERBOSE=1
+-	    ;;
+-	--version)
+-	    print_info "$VERSION"
+-	    exit 0
+-	    ;;
++        -V|--verbose)
++            OPT_VERBOSE=1
++            ;;
++        --version)
++            print_info "$VERSION"
++            exit 0
++            ;;
+         -h|--help)
+             show_help "$PROG_NAME"
+             exit 0
+@@ -331,7 +332,8 @@
+     shift
+ done
+ 
+-trap "trap_handler $?" SIGINT EXIT
++# 2: SIGINT, 0: EXIT
++trap 'trap_handler $?' 2 0
+ 
+ OPT_LUKS_NAME="${OPT_LUKS_NAME:-$DEFAULT_ENCRYPTION_NAME}"
+ 
+@@ -344,30 +346,29 @@
+ [ x"$OPT_LUKS_DEV" = x"" ] && print_error "LUKS device is not specified" &&
+     exit 1
+ 
+-TEMP_DIR=`mktemp -d /dev/luks-setup.XXXXXX`
++TEMP_DIR=$(mktemp -d /dev/luks-setup.XXXXXX)
+ print_verbose "Temporary directory created: $TEMP_DIR"
+ [ ! -d "$TEMP_DIR" ] && print_error "Failed to create the temporary directory" &&
+     exit 1
+ 
+ if [ $OPT_NO_SETUP -eq 1 ] ; then
+     if [ $OPT_MAP_EXISTING_LUKS -eq 1 ]; then
+-	if ! is_luks_partition "$OPT_LUKS_DEV"; then
++        if ! is_luks_partition "$OPT_LUKS_DEV"; then
+             print_info "$OPT_LUKS_DEV is not a LUKS partition"
+             exit 1
+-	fi
++        fi
+ 
+-	if [ $OPT_NO_TPM -eq 0 ] ; then
+-	    detect_tpm
+-	    [ $? -eq 0 ] && {
++        if [ $OPT_NO_TPM -eq 0 ] ; then
++            detect_tpm && {
+                 TPM_ABSENT=0
+                 ! unseal_passphrase "$TEMP_DIR/passphrase" && exit 1
+             }
+-	fi
++        fi
+ 
+-	! map_luks_partition "$OPT_LUKS_DEV" "$OPT_LUKS_NAME" \
++        ! map_luks_partition "$OPT_LUKS_DEV" "$OPT_LUKS_NAME" \
+             "$TPM_ABSENT" "$TEMP_DIR" && exit 1
+ 
+-	print_info "The LUKS partition $OPT_LUKS_NAME is created on $OPT_LUKS_DEV"
++        print_info "The LUKS partition $OPT_LUKS_NAME is created on $OPT_LUKS_DEV"
+     fi
+     exit 0
+ fi
+@@ -388,10 +389,11 @@
+ print_critical "******************************************************************"
+ echo
+ 
+-read -p "Do you wish to continue? [y/n] " -n 1
++echo -n "Do you wish to continue? [y/n] "
++read answer
+ echo
+ 
+-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
++if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+     print_info "Installation cancelled"
+     exit 0
+ else
+@@ -399,14 +401,12 @@
+ fi
+ 
+ if [ $OPT_NO_TPM -eq 0 ]; then
+-    detect_tpm
+-    if [ $? -eq 0 ]; then
++    if detect_tpm ; then
+         if [ $OPT_EVICT_ALL -eq 1 ]; then
+             cmd="tpm2_clear"
+             [ -n "$OPT_OLD_LOCKOUT_AUTH" ] && cmd="${cmd} --oldLockPasswd $OPT_OLD_LOCKOUT_AUTH"
+             [ -n "$OPT_LOCKOUT_AUTH" ] && cmd="${cmd} --LockPasswd $OPT_LOCKOUT_AUTH"
+-            eval "$cmd"
+-            if [ $? -ne 0 ]; then
++            if ! eval "$cmd" ; then
+                 print_error "Failed to clear authorization values with the lockoutAuth specified"
+                 exit 1
+             fi
+@@ -417,8 +417,8 @@
+             cmd="tpm2_dictionarylockout --setup-parameters --max-tries 1 \
+                      --recovery-time 0 --lockout-recovery-time 0"
+             [ -n "$OPT_LOCKOUT_AUTH" ] && cmd="${cmd} --lockout-passwd $OPT_LOCKOUT_AUTH"
+-            eval "$cmd"
+-            if [ $? -ne 0 ]; then
++            
++            if ! eval "$cmd" ; then
+                 print_error "Failed to set the default DA policy"
+                 exit 1
+             fi

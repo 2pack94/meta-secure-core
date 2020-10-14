@@ -8,7 +8,7 @@ DEPENDS_append_class-target += "\
 USER_KEY_SHOW_VERBOSE = "1"
 
 UEFI_SB = '${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "1", "0", d)}'
-MOK_SB = '${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "1", "0", d)}'
+MOK_SB ?= '${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "1", "0", d)}'
 MODSIGN = '${@bb.utils.contains("DISTRO_FEATURES", "modsign", "1", "0", d)}'
 IMA = '${@bb.utils.contains("DISTRO_FEATURES", "ima", "1", "0", d)}'
 SYSTEM_TRUSTED = '${@"1" if d.getVar("IMA", True) == "1" or d.getVar("MODSIGN", True) == "1" else "0"}'
@@ -481,6 +481,18 @@ def check_gpg_key(basekeyname, keydirfunc, d):
         f.write('allow-loopback-pinentry\n')
         f.write('auto-expand-secmem\n')
         f.close()
+
+    if len(gpg_path) > 80:
+        bn = d.getVar('BUILDNAME', True)
+        suffixlist = ["yocto-native", "browser", "ssh", "extra"]
+        for suffix in suffixlist:
+            socket = os.path.join(gpg_path, 'S.gpg-agent.' + suffix)
+            if not os.path.exists(socket):
+                f = open(socket, 'w')
+                f.write('%Assuan%\n')
+                f.write('socket=/tmp/S.gpg-agent.%s-%s\n' % (suffix, bn))
+                f.close()
+
     gpg_bin = d.getVar('GPG_BIN', True) or \
               bb.utils.which(os.getenv('PATH'), 'gpg')
     gpg_keyid = d.getVar(basekeyname + '_GPG_NAME', True)
@@ -499,6 +511,8 @@ def check_gpg_key(basekeyname, keydirfunc, d):
     status, output = oe.utils.getstatusoutput(cmd)
     if status:
         bb.fatal('Failed to import gpg key (%s): %s' % (gpg_key, output))
+
+check_gpg_key[vardepsexclude] = "BUILDNAME"
 
 python check_boot_public_key () {
     check_gpg_key('BOOT', uks_boot_keys_dir, d)
@@ -522,6 +536,10 @@ def boot_sign(input, d):
     status, output = oe.utils.getstatusoutput(cmd)
     if status:
         bb.fatal('Failed to sign: %s' % (input))
+    gpg_conf = bb.utils.which(os.getenv('PATH'), 'gpgconf')
+    cmd = 'GNUPGHOME=%s %s --kill gpg-agent' % \
+            (gpg_path, gpg_conf)
+    status, output = oe.utils.getstatusoutput(cmd)
 
 def uks_boot_sign(input, d):
     boot_sign(input, d)

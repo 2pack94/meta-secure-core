@@ -34,11 +34,7 @@ done
 mkdir -p "$ROOTFS_MOUNT"
 
 try_to_mount_rootfs() {
-<<<<<<< HEAD
     local mount_flags="rw,noatime,iversion"
-=======
-    mount_flags="rw,noatime,iversion"
->>>>>>> zeus_gplv3_free
 
     if [ $is_encrypted -eq 1 ] ; then
         [ -x /init.cryptfs ] &&

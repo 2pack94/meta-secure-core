@@ -1,11 +1,24 @@
---- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0200
-+++ b/init-install-efi.sh	2020-09-23 14:40:10.802293367 +0200
-@@ -8,15 +8,20 @@
+--- a/init-install-efi.sh	2020-05-26 13:52:06.000000000 +0000
++++ b/init-install-efi.sh	2020-11-04 14:54:50.876999101 +0000
+@@ -8,15 +8,33 @@
  
  PATH=/sbin:/bin:/usr/sbin:/usr/bin
  
 +do_encryption=0
 +use_initramfs=0
++
++is_vm=0
++if [ "$(grep -c '^flags.*\ hypervisor' < /proc/cpuinfo)" != "0" ]; then
++    is_vm=1
++fi
++
++# make sure that Secure Boot is enabled. Otherwise the system will be unprotected after installation.
++is_secure_boot=$(efivar -d -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-SecureBoot)
++is_secure_boot=$(( is_secure_boot ))
++if [ ${is_vm} -eq 0 ] && [ ${do_encryption} -ne 0 ] && [ ${is_secure_boot} -ne 1 ]; then
++    echo "Secure Boot must be enabled to install this image! Please enable Secure Boot in the BIOS."
++    exit 1
++fi
 +
  # figure out how big of a boot partition we need
 -boot_size=$(du -ms /run/media/$1/ | awk '{print $1}')
@@ -27,7 +40,7 @@
  fi
  # add 10M to provide some extra space for users and account
  # for rounding in the above subtractions
-@@ -27,7 +32,7 @@
+@@ -27,7 +45,7 @@
  
  # Get a list of hard drives
  hdnamelist=""
@@ -36,7 +49,7 @@
  live_dev_name=${live_dev_name#\/dev/}
  # Only strip the digit identifier if the device is not an mmc
  case $live_dev_name in
-@@ -44,8 +49,8 @@
+@@ -44,8 +62,8 @@
  
  # Some eMMC devices have special sub devices such as mmcblk0boot0 etc
  # we're currently only interested in the root device so pick them wisely
@@ -47,7 +60,7 @@
  devices="$devices $mmc_devices"
  
  for device in $devices; do
-@@ -83,18 +88,18 @@
+@@ -83,18 +101,18 @@
  for hdname in $hdnamelist; do
      # Display found hard drives and their basic info
      echo "-------------------------------"
@@ -73,7 +86,7 @@
      fi
      echo
  done
-@@ -125,7 +130,7 @@
+@@ -125,7 +143,7 @@
      exit 1
  fi
  
@@ -82,7 +95,7 @@
  
  #
  # The udev automounter can cause pain here, kill it
-@@ -136,7 +141,7 @@
+@@ -136,7 +154,7 @@
  #
  # Unmount anything the automounter had mounted
  #
@@ -91,7 +104,7 @@
  
  mkdir -p /tmp
  
-@@ -145,7 +150,7 @@
+@@ -145,7 +163,7 @@
      ln -sf /proc/mounts /etc/mtab
  fi
  
@@ -100,7 +113,7 @@
  
  swap_size=$((disk_size*swap_ratio/100))
  rootfs_size=$((disk_size-boot_size-swap_size))
-@@ -166,65 +171,94 @@
+@@ -166,65 +184,94 @@
  fi
  
  # USB devices also require rootwait
@@ -213,7 +226,7 @@
      echo "/dev/disk/by-partuuid/$swap_part_uuid                swap             swap       defaults              0  0" >> /tgt_root/etc/fstab
      echo "UUID=$boot_uuid              /boot            vfat       defaults              1  2" >> /tgt_root/etc/fstab
      # We dont want udev to mount our root device while we're booting...
-@@ -236,23 +270,34 @@
+@@ -236,23 +283,34 @@
  umount /src_root
  
  # Handling of the target boot partition
@@ -255,7 +268,7 @@
      # Delete any LABEL= strings
      sed -i "s/ LABEL=[^ ]*/ /" $GRUBCFG
      # Replace root= and add additional standard boot options
-@@ -260,21 +305,23 @@
+@@ -260,21 +318,23 @@
      sed -i "s/ root=[^ ]*/ root=PARTUUID=$root_part_uuid rw $rootwait quiet /g" $GRUBCFG
  fi
  
@@ -284,7 +297,7 @@
  fi
  
  umount /tgt_root
-@@ -282,15 +329,32 @@
+@@ -282,15 +342,32 @@
  # Copy kernel artifacts. To add more artifacts just add to types
  # For now just support kernel types already being used by something in OE-core
  for types in bzImage zImage vmlinux vmlinuz fitImage; do

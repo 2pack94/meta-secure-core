@@ -1,6 +1,14 @@
 FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
 SRC_URI += " \
-  file://0001-init-install-efi-support-secure-boot-files-and-full-disk-encryption.patch \
+    file://0001-init-install-efi-support-secure-boot-files-and-full-disk-encryption.patch \
+"
+
+# add efivar and the kernel modules needed for efivar to work.
+# used to verfiy if Secure Boot is enabled in the installation script.
+RDEPENDS_${PN} += "\
+    efivar \
+    kernel-module-efivarfs \
+    kernel-module-efivars \
 "
 
 python () {

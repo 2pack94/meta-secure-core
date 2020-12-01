@@ -15,7 +15,8 @@ INITRD_LIVE = " ${@ ('${DEPLOY_DIR_IMAGE}/' + d.getVar('INITRD_IMAGE', expand=Tr
 DISK_SIGNATURE_UUID ?= ""
 
 # kernel command line for the unified kernel image. Overrides settings from other layers.
-APPEND = "root=/dev/sda2 rw rootwait quiet"
+APPEND = "root=/dev/sda2 rw rootwait"
+APPEND += "quiet loglevel=4 console=/dev/null"
 
 # create a os-release file and add it as a section to the unified kernel image.
 # This is needed by systemd-boot to display the image in the boot menu.

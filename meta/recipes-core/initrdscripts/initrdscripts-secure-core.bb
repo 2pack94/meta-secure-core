@@ -14,6 +14,9 @@ do_install() {
     if [ "${FULL_DISK_ENCRYPTION}" = "1" ] && [ ${@bb.utils.contains("DISTRO_FEATURES", "luks", 'true', '', d)} ]; then
         sed -i '0,/is_encrypted=0/s//is_encrypted=1/' ${D}/init
     fi
+    if [ "${IS_PRODUCTION}" = "1" ]; then
+        sed -i '0,/LOG_LEVEL=1/s//LOG_LEVEL=0/' ${D}/init
+    fi
 
     # Create device nodes expected by kernel in initramfs
     # before executing /init.

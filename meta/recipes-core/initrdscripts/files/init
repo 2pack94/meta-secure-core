@@ -5,6 +5,8 @@ ROOTFS_MOUNT="/rootfs"
 INIT="/sbin/init"
 
 is_encrypted=0
+# 0: error, 1: verbose
+LOG_LEVEL=1
 
 mkdir -p /proc /sys /dev /run
 mount -t proc none /proc
@@ -48,7 +50,9 @@ try_to_mount_rootfs() {
     return 1
 }
 
-echo "Waiting for root device to be ready ..."
+if [ $LOG_LEVEL -gt 0 ] ; then
+    echo "Waiting for root device to be ready ..."
+fi
 
 while true ; do
     try_to_mount_rootfs && break
@@ -59,7 +63,7 @@ done
 # the corresponding directories under the real root filesystem.
 for dir in $(grep -v rootfs /proc/mounts | awk '{ print $2 }') ; do
     mkdir -p "$ROOTFS_MOUNT/${dir##*/}"
-    mount -nv --move "$dir" "$ROOTFS_MOUNT/${dir##*/}"
+    mount -nv --move "$dir" "$ROOTFS_MOUNT/${dir##*/}" > /dev/null
 done
 
 cd "$ROOTFS_MOUNT"

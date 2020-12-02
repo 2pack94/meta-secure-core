@@ -19,13 +19,17 @@ DEPENDS += "tpm2-tss tpm2-abrmd pkgconfig-native"
 
 PV = "0.7.0+git${SRCPV}"
 
+# 0001-all-updated-to-add-vm-support.patch:
+# combine different patches from the original recipe into 1 patch
+# add Virtual Machine Support
+# file://0001-encrypt_secret.py-switch-to-python3.patch
+# file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch
+# file://0002-luks-setup.sh-Updated-TPM-Tools.patch
+# file://0003-luks-setup.sh-remove-bashisms.patch
+# file://0001-init.cryptfs-remove-bashisms.patch
 SRC_URI = "\
     git://github.com/jiazhang0/cryptfs-tpm2.git \
-    file://0001-encrypt_secret.py-switch-to-python3.patch \
-    file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch \
-    file://0002-luks-setup.sh-Updated-TPM-Tools.patch \
-    file://0003-luks-setup.sh-remove-bashisms.patch \
-    file://0001-init.cryptfs-remove-bashisms.patch \
+    file://0001-all-updated-to-add-vm-support.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"
 
@@ -53,6 +57,9 @@ do_install() {
 
     if [ "${@bb.utils.contains('DISTRO_FEATURES', 'luks', '1', '0', d)}" = "1" ]; then
         install -m 0500 "${S}/scripts/init.cryptfs" "${D}"
+        if [ "${IS_PRODUCTION}" = "1" ]; then
+            sed -i '0,/LOG_LEVEL=5/s//LOG_LEVEL=2/' ${D}/init.cryptfs
+        fi
     fi
 }
 

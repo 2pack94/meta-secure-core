@@ -16,7 +16,7 @@ DISK_SIGNATURE_UUID ?= ""
 
 # kernel command line for the unified kernel image. Overrides settings from other layers.
 APPEND = "root=/dev/sda2 rw rootwait"
-APPEND += "${@ "quiet loglevel=4" if bb.utils.to_boolean(d.getVar('IS_PRODUCTION')) else "" }"
+APPEND += "${@ "quiet loglevel=4 console=/dev/null" if bb.utils.to_boolean(d.getVar('IS_PRODUCTION')) else "" }"
 
 # create a os-release file and add it as a section to the unified kernel image.
 # This is needed by systemd-boot to display the image in the boot menu.

@@ -19,17 +19,13 @@ DEPENDS += "tpm2-tss tpm2-abrmd pkgconfig-native"
 
 PV = "0.7.0+git${SRCPV}"
 
-# 0001-all-updated-to-add-vm-support.patch:
-# combine different patches from the original recipe into 1 patch
-# add Virtual Machine Support
-# file://0001-encrypt_secret.py-switch-to-python3.patch
-# file://0001-luks-setup.sh-Add-support-for-qemu-with-the-swtpm.patch
-# file://0002-luks-setup.sh-Updated-TPM-Tools.patch
-# file://0003-luks-setup.sh-remove-bashisms.patch
-# file://0001-init.cryptfs-remove-bashisms.patch
+# 0001-all-updated.patch:
+# combine different patches from the original recipe into 1 patch.
+# this patch is only a placeholder, does not contain the latest changes and will be overridden from the redkeep-os layer.
+# the patch in the redkeep-os layer must not be placed here, but the build process must succeed even without overriding this patch.
 SRC_URI = "\
     git://github.com/jiazhang0/cryptfs-tpm2.git \
-    file://0001-all-updated-to-add-vm-support.patch \
+    file://0001-all-updated.patch \
 "
 SRCREV = "87c35c63090a33d4de437f518b8da9f2d1f1d828"
 

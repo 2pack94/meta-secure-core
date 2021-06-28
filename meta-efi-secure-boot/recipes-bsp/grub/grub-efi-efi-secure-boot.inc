@@ -9,9 +9,11 @@ EXTRA_SRC_URI = "\
 
 GRUB_MOKVERIFY_PATCH = " \
    file://mok2verify-support-to-verify-non-PE-file-with-PKCS-7.patch \
-   file://mok2verify-multiboot.patch"
+   file://mok2verify-multiboot.patch \
+   file://verify-all-buffiles.patch \
+"
 
-SRC_URI += "\
+SRC_URI_append_class-target += "\
     file://0001-pe32.h-add-header-structures-for-TE-and-DOS-executab.patch \
     file://0002-shim-add-needed-data-structures.patch \
     file://0003-efi-chainloader-implement-an-UEFI-Exit-service-for-s.patch \
@@ -26,6 +28,7 @@ SRC_URI += "\
     file://Grub-get-and-set-efi-variables.patch \
     file://uefi_verify.patch \
     file://0001-grub-verify-Add-strict_security-variable.patch \
+    file://0001-kern-efi-init.c-disable-inside-lockdown-and-shim_loc.patch \
     file://grub-efi.cfg \
     file://boot-menu.inc \
     ${@d.getVar('GRUB_MOKVERIFY_PATCH', True) if d.getVar('UEFI_SELOADER', True) == '1' else ''} \
@@ -35,6 +38,7 @@ SRC_URI += "\
 # functions efi_call_foo and efi_shim_exit are not implemented for arm64 yet
 COMPATIBLE_HOST_aarch64 = 'null'
 
+GRUB_PREFIX_DIR ?= "/EFI/BOOT"
 EFI_BOOT_PATH ?= "/boot/efi/EFI/BOOT"
 
 GRUB_SECURE_BOOT_MODULES += "${@'efivar password_pbkdf2 ' if d.getVar('UEFI_SB', True) == '1' else ''}"
@@ -44,13 +48,14 @@ GRUB_SIGNING_MODULES += "${@'pgp gcry_rsa gcry_sha256 gcry_sha512 --pubkey %s ' 
 
 GRUB_SELOADER_MODULES += "${@'mok2verify ' if d.getVar('UEFI_SELOADER', True) == '1' else ''}"
 
-GRUB_BUILDIN_append += "tftp reboot chain \
+GRUB_BUILDIN_append_class-target += "\
+  tftp reboot chain \
   ${GRUB_SECURE_BOOT_MODULES} \
   ${GRUB_SIGNING_MODULES} \
   ${GRUB_SELOADER_MODULES}"
 
 # For efi_call_foo and efi_shim_exit
-CFLAGS_append = " -fno-toplevel-reorder"
+CFLAGS_append_class-target = " -fno-toplevel-reorder"
 
 # Set a default root specifier.
 inherit user-key-store
@@ -75,20 +80,18 @@ python __anonymous () {
     d.setVar("GRUB_IMAGE", grubimage)
 }
 
-do_compile_append() {
+do_compile_append_class-target() {
 	if [ "${GRUB_SIGN_VERIFY}" = "1" -a "${GRUB_SIGN_VERIFY_STRICT}" = "1" ] ; then
 		cat<<EOF>${WORKDIR}/cfg
-insmod verify
 set strict_security=1
-search.file (\$cmdpath)/EFI/BOOT/grub.cfg root
-set prefix=(\$root)/EFI/BOOT
 EOF
-	else
-		cat<<EOF>${WORKDIR}/cfg
-search.file (\$cmdpath)/EFI/BOOT/grub.cfg root
-set prefix=(\$root)/EFI/BOOT
-EOF
+  else
+    > ${WORKDIR}/cfg
 	fi
+	cat<<EOF>>${WORKDIR}/cfg
+search.file (\$cmdpath)${GRUB_PREFIX_DIR}/grub.cfg root
+set prefix=(\$root)${GRUB_PREFIX_DIR}
+EOF
 }
 
 do_compile_append_class-native() {
@@ -129,7 +132,7 @@ do_install_append_class-target() {
     grub-editenv "${D}${EFI_BOOT_PATH}/grubenv" create
 
     install -d "${D}${EFI_BOOT_PATH}/${GRUB_TARGET}-efi"
-    grub-mkimage -c ../cfg -p /EFI/BOOT -d "./grub-core" \
+    grub-mkimage -c ../cfg -p "${GRUB_PREFIX_DIR}" -d "./grub-core" \
         -O "${GRUB_TARGET}-efi" -o "${B}/${GRUB_IMAGE}" \
         ${GRUB_BUILDIN}
 
@@ -195,7 +198,7 @@ do_deploy_append_class-target() {
     }
     install -d "${DEPLOYDIR}/efi-unsigned"
     install -m 0644 "${B}/${GRUB_IMAGE}" "${DEPLOYDIR}/efi-unsigned"
-    cp -af "${D}${EFI_BOOT_PATH}/${GRUB_TARGET}-efi" "${DEPLOYDIR}/efi-unsigned"
+    PSEUDO_DISABLED=1 cp -af "${D}${EFI_BOOT_PATH}/${GRUB_TARGET}-efi" "${DEPLOYDIR}/efi-unsigned"
 }
 
 FILES_${PN} += "${EFI_BOOT_PATH}"

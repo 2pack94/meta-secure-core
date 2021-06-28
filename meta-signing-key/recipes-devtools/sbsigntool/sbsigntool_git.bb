@@ -7,26 +7,25 @@ LIC_FILES_CHKSUM = "\
     file://COPYING;md5=a7710ac18adec371b84a9594ed04fd20 \
 "
 
-DEPENDS += "binutils openssl gnu-efi util-linux"
+DEPENDS += "binutils openssl gnu-efi gnu-efi-native"
+DEPENDS += "binutils-native help2man-native coreutils-native openssl-native util-linux-native"
 
-PV = "0.6+git${SRCPV}"
-
-SRC_URI = "\
-    git://kernel.ubuntu.com/jk/sbsigntool \
-    file://ccan.git.tar.bz2 \
-    file://fix-mixed-implicit-and-normal-rules.patch;apply=0 \
-    file://disable-man-page-creation.patch \
-    file://Fix-for-multi-sign.patch \
-    file://sbsign-add-x-option-to-avoid-overwrite-existing-sign.patch \
-    file://image-fix-the-segment-fault-caused-by-the-uninitiali.patch \
-    file://Fix-the-deprecated-ASN1_STRING_data-in-openssl-1.1.0.patch \
-    file://Update-OpenSSL-API-usage-to-support-OpenSSL-1.1.patch \
+SRC_URI = " \
+    git://git.kernel.org/pub/scm/linux/kernel/git/jejb/sbsigntools.git;protocol=https;name=sbsigntools \
+    git://github.com/rustyrussell/ccan.git;protocol=https;destsuffix=git/lib/ccan.git;name=ccan \
+    file://0001-configure-Dont-t-check-for-gnu-efi.patch \
+    file://0002-docs-Don-t-build-man-pages.patch \
+    file://0003-sbsign-add-x-option-to-avoid-overwrite-existing-sign.patch \
 "
-SRCREV="951ee95a301674c046f55330cd7460e1314deff2"
+SRCREV_sbsigntools  ?= "f12484869c9590682ac3253d583bf59b890bb826"
+SRCREV_ccan         ?= "b1f28e17227f2320d07fe052a8a48942fe17caa5"
+SRCREV_FORMAT       =  "sbsigntools_ccan"
+
+PV = "0.9.2-git${SRCPV}"
 
 S = "${WORKDIR}/git"
 
-inherit autotools-brokensep pkgconfig
+inherit autotools-brokensep pkgconfig native
 
 def efi_arch(d):
     import re
@@ -42,32 +41,45 @@ def efi_arch(d):
 #    --with-libtool-sysroot \
 #"
 
+CFLAGS += "-Wno-error=maybe-uninitialized"
+
+HOST_EXTRACFLAGS += "\
+    INCLUDES+='-I${S}/lib/ccan.git/ \
+              -I${STAGING_INCDIR_NATIVE}/efi \
+              -I${STAGING_INCDIR_NATIVE} \
+"
+
 EXTRA_OEMAKE += "\
     INCLUDES='-I${S}/lib/ccan.git' \
-    EFI_CPPFLAGS='-I${STAGING_INCDIR}/efi \
+    EFI_CPPFLAGS='-I${STAGING_INCDIR} -I${STAGING_INCDIR}/efi \
                   -I${STAGING_INCDIR}/efi/${@efi_arch(d)}' \
 "
 
-do_configure() {
-    cd "${S}"
-    rm -rf "lib/ccan.git"
-    git clone "${WORKDIR}/ccan.git" lib/ccan.git
-    cd lib/ccan.git && \
-        git apply "${WORKDIR}/fix-mixed-implicit-and-normal-rules.patch" && \
-        cd -
-
-    OLD_CC="${CC}"
+do_configure_prepend() {
+    cd ${S}
 
     if [ ! -e lib/ccan ]; then
-        export CC="${BUILD_CC}"
+
+        # Use empty SCOREDIR because 'make scores' is not run.
+        # The default setting depends on (non-whitelisted) host tools.
+        sed -i -e 's#^\(SCOREDIR=\).*#\1#' lib/ccan.git/Makefile
+
         TMPDIR=lib lib/ccan.git/tools/create-ccan-tree \
             --build-type=automake lib/ccan \
-                talloc read_write_all build_assert array_size endian || exit 1
+            talloc read_write_all build_assert array_size endian
     fi
 
-    export CC="${OLD_CC}"
-    ./autogen.sh --noconfigure
-    oe_runconf
+    # Create generatable docs from git
+    (
+    echo "Authors of sbsigntool:"
+    echo
+    git log --format='%an' | sort -u | sed 's,^,\t,'
+    ) > AUTHORS
+
+    # Generate simple ChangeLog
+    git log --date=short --format='%ad %t %an <%ae>%n%n  * %s%n' > ChangeLog
+    
+    cd ${B}
 }
 
 BBCLASSEXTEND = "native nativesdk"

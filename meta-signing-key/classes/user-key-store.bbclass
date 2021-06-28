@@ -1,10 +1,11 @@
 DEPENDS_append_class-target += "\
-    sbsigntool-native \
-    libsign-native \
+    ${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "sbsigntool-native", "", d)} \
+    ${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "libsign-native", "", d)} \
     openssl-native \
     ${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "efitools-native gnupg-native", "", d)} \
 "
 
+PSEUDO_IGNORE_PATHS .= ",${GPG_PATH}"
 USER_KEY_SHOW_VERBOSE = "1"
 
 UEFI_SB = '${@bb.utils.contains("DISTRO_FEATURES", "efi-secure-boot", "1", "0", d)}'
@@ -13,7 +14,7 @@ MODSIGN = '${@bb.utils.contains("DISTRO_FEATURES", "modsign", "1", "0", d)}'
 IMA = '${@bb.utils.contains("DISTRO_FEATURES", "ima", "1", "0", d)}'
 SYSTEM_TRUSTED = '${@"1" if d.getVar("IMA", True) == "1" or d.getVar("MODSIGN", True) == "1" else "0"}'
 SECONDARY_TRUSTED = '${@"1" if d.getVar("SYSTEM_TRUSTED", True) == "1" else "0"}'
-RPM = '1'
+RPM ?= '1'
 
 def vprint(str, d):
     if d.getVar('USER_KEY_SHOW_VERBOSE', True) == '1':
@@ -477,7 +478,10 @@ def check_gpg_key(basekeyname, keydirfunc, d):
         status, output = oe.utils.getstatusoutput('mkdir -m 0700 -p %s' % gpg_path)
         if status:
             bb.fatal('Failed to create gpg keying %s: %s' % (gpg_path, output))
-        f = open(os.path.join(gpg_path, 'gpg-agent.conf'), 'w')
+
+    gpg_conf = os.path.join(gpg_path, 'gpg-agent.conf')
+    if not os.path.exists(gpg_conf):
+        f = open(gpg_conf, 'w')
         f.write('allow-loopback-pinentry\n')
         f.write('auto-expand-secmem\n')
         f.close()
@@ -536,10 +540,6 @@ def boot_sign(input, d):
     status, output = oe.utils.getstatusoutput(cmd)
     if status:
         bb.fatal('Failed to sign: %s' % (input))
-    gpg_conf = bb.utils.which(os.getenv('PATH'), 'gpgconf')
-    cmd = 'GNUPGHOME=%s %s --kill gpg-agent' % \
-            (gpg_path, gpg_conf)
-    status, output = oe.utils.getstatusoutput(cmd)
 
 def uks_boot_sign(input, d):
     boot_sign(input, d)

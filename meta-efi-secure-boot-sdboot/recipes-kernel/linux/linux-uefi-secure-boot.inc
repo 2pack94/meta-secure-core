@@ -11,9 +11,16 @@ inherit uefi-sign
 
 # remove any previous signatures, if necessary
 do_uefi_sign_prepend() {
+    #TEST
+    bbwarn "signing dir: ${SIGNING_DIR}"
     if [ -f ${SECURE_BOOT_SIGNING_KEY} ] && [ -f ${SECURE_BOOT_SIGNING_CERT} ]; then
         for i in `find ${SIGNING_DIR}/ -name '${SIGNING_BINARIES}'`; do
-            sbattach --remove $i
+            if [ "$(sbverify --list $i 2>&1)" != "No signature table present" ]; then
+                #TEST
+                bbwarn "remove signature for $i"
+                sbattach --remove $i
+                echo test
+            fi
         done
     fi
 }

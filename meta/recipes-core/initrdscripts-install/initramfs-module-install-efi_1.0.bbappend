@@ -3,13 +3,15 @@ SRC_URI += " \
     file://0001-init-install-efi-support-secure-boot-files-and-full-disk-encryption.patch \
 "
 
+# comment out the kernel-module rdepends to fix a build error in yocto dunfell.
 # add efivar and the kernel modules needed for efivar to work.
 # used to verfiy if Secure Boot is enabled in the installation script.
 RDEPENDS_${PN} += "\
     efivar \
-    kernel-module-efivarfs \
-    kernel-module-efivars \
 "
+#    kernel-module-efivarfs \
+#    kernel-module-efivars \
+#"
 
 python () {
     if d.getVar("FULL_DISK_ENCRYPTION") == "1" and bb.utils.contains("DISTRO_FEATURES", "luks", True, False, d):
